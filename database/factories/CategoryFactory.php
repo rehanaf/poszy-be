@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Models\Category;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 
 class CategoryFactory extends Factory
 {
@@ -21,9 +22,23 @@ class CategoryFactory extends Factory
      */
     public function definition(): array
     {
+        $categories = [
+            'Makanan',
+            'Minuman',
+            'Snack',
+            'Sembako',
+            'Bumbu Dapur',
+            'Perawatan Diri',
+            'Kebersihan',
+            'Alat Tulis',
+            'Kebutuhan Bayi',
+            'Elektronik',
+        ];
+        $name = $this->faker->unique()->randomElement($categories);
+
         return [
-            'name' => $this->faker->unique()->word() . ' Category',
-            'description' => $this->faker->sentence(),
+            'name' => $name,
+            'description' => 'Kategori ' . $name . ' untuk kebutuhan toko',
         ];
     }
 }

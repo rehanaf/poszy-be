@@ -21,9 +21,19 @@ class PaymentMethodFactory extends Factory
      */
     public function definition(): array
     {
+        $methods = [
+            'Tunai' => 'Pembayaran langsung menggunakan uang tunai',
+            'Kartu Kredit' => 'Pembayaran menggunakan kartu kredit',
+            'Kartu Debit' => 'Pembayaran menggunakan kartu debit',
+            'QRIS' => 'Pembayaran melalui scan kode QR',
+            'Transfer Bank' => 'Pembayaran melalui transfer bank',
+        ];
+
+        $name = $this->faker->unique()->randomElement(array_keys($methods));
+
         return [
-            'name' => $this->faker->unique()->randomElement(['Cash', 'Credit Card', 'Debit Card', 'QRIS', 'Bank Transfer']),
-            'description' => $this->faker->sentence(),
+            'name' => $name,
+            'description' => $methods[$name],
             'is_active' => true,
         ];
     }

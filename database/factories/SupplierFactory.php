@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Models\Supplier;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Faker\Factory as FakerFactory;
 
 class SupplierFactory extends Factory
 {
@@ -21,12 +22,14 @@ class SupplierFactory extends Factory
      */
     public function definition(): array
     {
+        $faker = FakerFactory::create('id_ID');
+
         return [
-            'name' => $this->faker->company() . ' Supplier',
-            'contact_person' => $this->faker->name(),
-            'phone' => $this->faker->unique()->phoneNumber(),
-            'email' => $this->faker->unique()->safeEmail(),
-            'address' => $this->faker->address(),
+            'name' => $faker->unique()->company(),
+            'contact_person' => $faker->name(),
+            'phone' => $faker->unique()->phoneNumber(),
+            'email' => $faker->unique()->safeEmail(),
+            'address' => $faker->address(),
         ];
     }
 }
