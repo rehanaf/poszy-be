@@ -60,16 +60,12 @@ class CustomerController extends Controller
                 'phone' => ['nullable', 'string', 'max:50', 'unique:customers'],
                 'address' => ['nullable', 'string', 'max:500'],
                 'customer_type' => ['nullable', 'string', 'in:Keluarga / Karyawan,Komunitas,Member Gold,Member Silver,Umum,Grab,Gojek'],
+                'customer_code' => ['nullable', 'string', 'max:30', 'regex:/^CR\d{5}-\d{4}$/', 'unique:customers'],
             ]);
 
-            // Generate kode customer otomatis: CR00001-2026, CR00002-2026, ... (urutan global, tahun = tahun daftar)
-            $lastCode = Customer::orderBy('id', 'desc')->value('customer_code');
-            $lastNumber = 0;
-            if ($lastCode) {
-                $numberPart = explode('-', $lastCode)[0]; // contoh: CR00019
-                $lastNumber = (int) substr($numberPart, 2); // contoh: 19
-            }
-            $customerCode = 'CR' . str_pad((string) ($lastNumber + 1), 5, '0', STR_PAD_LEFT) . '-' . now()->year;
+            // Jika customer_code tidak dikirim, generate otomatis
+            $customerCode = $request->input('customer_code')
+                ?: $this->generateNextCode();
 
             // Membuat pelanggan baru
             $customer = Customer::create(array_merge($request->except('customer_code'), [
@@ -91,6 +87,33 @@ class CustomerController extends Controller
                 'error' => $e->getMessage(),
             ], 500); // 500 Internal Server Error
         }
+    }
+
+    /**
+     * Return the next auto-generated customer code (untuk isian default di form).
+     */
+    public function nextCode()
+    {
+        return response()->json([
+            'customer_code' => $this->generateNextCode(),
+        ], 200);
+    }
+
+    /**
+     * Generate kode customer otomatis: CR00001-2026, CR00002-2026, ...
+     * (urutan global, tahun = tahun daftar)
+     */
+    private function generateNextCode(): string
+    {
+        $lastCode = Customer::orderBy('id', 'desc')->value('customer_code');
+        $lastNumber = 0;
+        if ($lastCode) {
+            $digits = ltrim((string) preg_replace('/[^0-9]/', '', explode('-', $lastCode)[0]), '0');
+            $lastNumber = ($digits === '') ? 0 : (int) $digits;
+        }
+        $next = $lastNumber + 1;
+        $pad = max(5, strlen((string) $next));
+        return 'CR' . str_pad((string) $next, $pad, '0', STR_PAD_LEFT) . '-' . now()->year;
     }
 
     /**
@@ -122,10 +145,17 @@ class CustomerController extends Controller
                 'phone' => ['nullable', 'string', 'max:50', 'unique:customers,phone,' . $customer->id], // Phone unik kecuali untuk ID-nya sendiri
                 'address' => ['nullable', 'string', 'max:500'],
                 'customer_type' => ['nullable', 'string', 'in:Keluarga / Karyawan,Komunitas,Member Gold,Member Silver,Umum,Grab,Gojek'],
+                'customer_code' => ['nullable', 'string', 'max:30', 'regex:/^CR\d{5}-\d{4}$/', 'unique:customers,customer_code,' . $customer->id], // Unik kecuali untuk dirinya sendiri
             ]);
 
+            $data = $request->all();
+            // Jika customer_code dikosongkan, pertahankan kode lama
+            if (empty($data['customer_code'])) {
+                unset($data['customer_code']);
+            }
+
             // Memperbarui pelanggan
-            $customer->update($request->all());
+            $customer->update($data);
 
             return response()->json([
                 'message' => 'Customer updated successfully.',
