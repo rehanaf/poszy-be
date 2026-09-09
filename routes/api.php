@@ -13,6 +13,7 @@ use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\UserController; // Import UserController
+use App\Http\Controllers\DashboardController; // Import DashboardController
 
 // Public routes (accessible without authentication)
 Route::post('/register', [AuthController::class, 'register']);
@@ -40,6 +41,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/orders/{order}/pdf', [OrderController::class, 'pdf']);
         Route::get('/orders/{order}/print', [OrderController::class, 'print']);
         Route::apiResource('purchases', PurchaseController::class);
+        Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
     });
 
     // Grup rute khusus untuk 'admin' (Manajemen User)

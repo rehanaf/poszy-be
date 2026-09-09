@@ -38,6 +38,11 @@ class Product extends Model
         return $this->hasMany(PurchaseItem::class);
     }
 
+    public function variants()
+    {
+        return $this->hasMany(ProductVariant::class);
+    }
+
     public function getImageUrlAttribute($value)
     {
         if ($value) {

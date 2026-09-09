@@ -29,7 +29,7 @@ class CustomerController extends Controller
         $sortOrder = $request->get('sort_order', 'asc'); // Default sort order asc
 
         // Validate sort_by column
-        $allowedSortColumns = ['id', 'name', 'email', 'phone', 'created_at', 'updated_at'];
+        $allowedSortColumns = ['id', 'customer_code', 'name', 'email', 'phone', 'customer_type', 'created_at', 'updated_at'];
         if (!in_array($sortBy, $allowedSortColumns)) {
             $sortBy = 'name'; // Fallback
         }
@@ -59,10 +59,22 @@ class CustomerController extends Controller
                 'email' => ['nullable', 'email', 'max:255', 'unique:customers'],
                 'phone' => ['nullable', 'string', 'max:50', 'unique:customers'],
                 'address' => ['nullable', 'string', 'max:500'],
+                'customer_type' => ['nullable', 'string', 'in:Keluarga / Karyawan,Komunitas,Member Gold,Member Silver,Umum,Grab,Gojek'],
             ]);
 
+            // Generate kode customer otomatis: CR00001-2026, CR00002-2026, ... (urutan global, tahun = tahun daftar)
+            $lastCode = Customer::orderBy('id', 'desc')->value('customer_code');
+            $lastNumber = 0;
+            if ($lastCode) {
+                $numberPart = explode('-', $lastCode)[0]; // contoh: CR00019
+                $lastNumber = (int) substr($numberPart, 2); // contoh: 19
+            }
+            $customerCode = 'CR' . str_pad((string) ($lastNumber + 1), 5, '0', STR_PAD_LEFT) . '-' . now()->year;
+
             // Membuat pelanggan baru
-            $customer = Customer::create($request->all());
+            $customer = Customer::create(array_merge($request->except('customer_code'), [
+                'customer_code' => $customerCode,
+            ]));
 
             return response()->json([
                 'message' => 'Customer created successfully.',
@@ -109,6 +121,7 @@ class CustomerController extends Controller
                 'email' => ['nullable', 'email', 'max:255', 'unique:customers,email,' . $customer->id], // Email unik kecuali untuk ID-nya sendiri
                 'phone' => ['nullable', 'string', 'max:50', 'unique:customers,phone,' . $customer->id], // Phone unik kecuali untuk ID-nya sendiri
                 'address' => ['nullable', 'string', 'max:500'],
+                'customer_type' => ['nullable', 'string', 'in:Keluarga / Karyawan,Komunitas,Member Gold,Member Silver,Umum,Grab,Gojek'],
             ]);
 
             // Memperbarui pelanggan

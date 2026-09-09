@@ -14,7 +14,7 @@ class ProductController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Product::with('category'); // Always eager load category
+        $query = Product::with(['category', 'variants']); // Always eager load category
 
         // Search by name or SKU
         if ($request->has('search') && $request->search != '') {
@@ -59,7 +59,7 @@ class ProductController extends Controller
      */
     public function all()
     {
-        $products = Product::with('category')->where('is_active', true)->get();
+        $products = Product::with(['category', 'variants'])->where('is_active', true)->get();
         return response()->json($products, 200);
     }
 
@@ -84,10 +84,15 @@ class ProductController extends Controller
                 'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,svg', 'max:2048'], // Validasi untuk file gambar (max 2MB)
                 'is_active' => ['boolean'],
                 'discount' => ['numeric', 'min:0', 'max:100'],
+                'variants' => ['nullable', 'array'],
+                'variants.*.name' => ['required_with:variants', 'string', 'max:255'],
+                'variants.*.sku' => ['nullable', 'string', 'max:255'],
+                'variants.*.price' => ['required_with:variants', 'numeric', 'min:0'],
+                'variants.*.stock' => ['nullable', 'integer', 'min:0'],
             ]);
 
-            // Ambil semua data dari request kecuali 'image'
-            $data = $request->except('image');
+            // Ambil semua data dari request kecuali 'image' dan 'variants'
+            $data = $request->except(['image', 'variants']);
 
             // Tangani upload gambar jika ada
             if ($request->hasFile('image')) {
@@ -104,9 +109,19 @@ class ProductController extends Controller
             // Buat produk baru di database
             $product = Product::create($data);
 
+            // Simpan variasi produk jika ada
+            foreach ($request->input('variants', []) as $variant) {
+                $product->variants()->create([
+                    'name' => $variant['name'],
+                    'sku' => $variant['sku'] ?? null,
+                    'price' => $variant['price'],
+                    'stock' => $variant['stock'] ?? null,
+                ]);
+            }
+
             return response()->json([
                 'message' => 'Product created successfully.',
-                'product' => $product
+                'product' => $product->load(['category', 'variants'])
             ], 201); // 201 Created
         } catch (ValidationException $e) {
             return response()->json([
@@ -129,8 +144,8 @@ class ProductController extends Controller
      */
     public function show(Product $product)
     {
-        // Mengembalikan produk yang ditemukan dengan relasi kategori dimuat
-        return response()->json($product->load('category'), 200);
+        // Mengembalikan produk yang ditemukan dengan relasi kategori dan variasi dimuat
+        return response()->json($product->load(['category', 'variants']), 200);
     }
 
     /**
@@ -156,10 +171,16 @@ class ProductController extends Controller
                 'is_active' => ['boolean'],
                 'discount' => ['numeric', 'min:0', 'max:100'],
                 'remove_image' => ['boolean'], // Field opsional untuk menghapus gambar tanpa upload baru
+                'variants' => ['nullable', 'array'],
+                'variants.*.id' => ['nullable', 'integer', 'exists:product_variants,id'],
+                'variants.*.name' => ['required_with:variants', 'string', 'max:255'],
+                'variants.*.sku' => ['nullable', 'string', 'max:255'],
+                'variants.*.price' => ['required_with:variants', 'numeric', 'min:0'],
+                'variants.*.stock' => ['nullable', 'integer', 'min:0'],
             ]);
 
-            // Ambil semua data dari request kecuali 'image' dan 'remove_image'
-            $data = $request->except(['image', 'remove_image']);
+            // Ambil semua data dari request kecuali 'image', 'remove_image', dan 'variants'
+            $data = $request->except(['image', 'remove_image', 'variants']);
 
             if ($request->hasFile('image')) {
                 // Hapus gambar lama jika ada
@@ -184,9 +205,31 @@ class ProductController extends Controller
             // Perbarui produk di database
             $product->update($data);
 
+            // Sinkronisasi variasi: update/create yang dikirim, hapus yang tidak ada di daftar
+            $keptVariantIds = [];
+            foreach ($request->input('variants', []) as $variant) {
+                $variantData = [
+                    'name' => $variant['name'],
+                    'sku' => $variant['sku'] ?? null,
+                    'price' => $variant['price'],
+                    'stock' => $variant['stock'] ?? null,
+                ];
+                if (!empty($variant['id'])) {
+                    $existing = $product->variants()->find($variant['id']);
+                    if ($existing) {
+                        $existing->update($variantData);
+                        $keptVariantIds[] = $existing->id;
+                        continue;
+                    }
+                }
+                $created = $product->variants()->create($variantData);
+                $keptVariantIds[] = $created->id;
+            }
+            $product->variants()->whereNotIn('id', $keptVariantIds)->delete();
+
             return response()->json([
                 'message' => 'Product updated successfully.',
-                'product' => $product
+                'product' => $product->load(['category', 'variants'])
             ], 200); // 200 OK
         } catch (ValidationException $e) {
             return response()->json([

@@ -97,6 +97,8 @@ class OrderController extends Controller
                 'notes' => ['nullable', 'string', 'max:500'],
                 'items' => ['required', 'array', 'min:1'],
                 'items.*.product_id' => ['nullable', 'exists:products,id'], // Nullable for temporary products
+                'items.*.product_variant_id' => ['nullable', 'exists:product_variants,id'],
+                'items.*.variant_name' => ['nullable', 'string', 'max:255'],
                 'items.*.product_name' => ['required_without:items.*.product_id', 'string', 'max:255'], // Required if product_id is null
                 'items.*.quantity' => ['required', 'integer', 'min:1'],
                 'items.*.price' => ['required', 'numeric', 'min:0'], // 'price' is actual selling price
@@ -134,6 +136,19 @@ class OrderController extends Controller
 
             foreach ($request->input('items') as $item) {
                 $product = null;
+                $variant = null;
+
+                // Validasi: jika product_variant_id dikirim, wajib masih milik product_id tsb
+                if (!empty($item['product_variant_id'])) {
+                    $variant = \App\Models\ProductVariant::find($item['product_variant_id']);
+                    if (!$variant || ($item['product_id'] && $variant->product_id != $item['product_id'])) {
+                        DB::rollBack();
+                        return response()->json([
+                            'message' => 'Invalid product variant for item: ' . ($item['product_name'] ?? 'unknown')
+                        ], 400);
+                    }
+                }
+
                 // If product_id exists, fetch product data
                 if ($item['product_id']) {
                     $product = Product::find($item['product_id']);
@@ -143,8 +158,16 @@ class OrderController extends Controller
                             'message' => 'Product not found for ID: ' . $item['product_id']
                         ], 404);
                     }
-                    // Cek stok hanya jika stok tidak null
-                    if ($product->stock !== null && $product->stock < $item['quantity']) {
+                    // Cek stok (per varian jika ada varian, jika tidak cek stok produk)
+                    if ($variant) {
+                        if ($variant->stock !== null && $variant->stock < $item['quantity']) {
+                            DB::rollBack();
+                            return response()->json([
+                                'message' => 'Not enough stock for variant: ' . $variant->name . ' (' . $product->name . ')',
+                                'available_stock' => $variant->stock
+                            ], 400);
+                        }
+                    } elseif ($product->stock !== null && $product->stock < $item['quantity']) {
                         DB::rollBack();
                         return response()->json([
                             'message' => 'Not enough stock for product: ' . $product->name,
@@ -160,15 +183,21 @@ class OrderController extends Controller
 
                 $order->orderItems()->create([
                     'product_id' => $item['product_id'],
+                    'product_variant_id' => $variant?->id,
                     'product_name' => $item['product_name'] ?? ($product ? $product->name : 'Temporary Product'), // Nama produk tetap terisi
+                    'variant_name' => $item['variant_name'] ?? $variant?->name,
                     'quantity' => $item['quantity'],
                     'price' => $itemPrice,
                     'discount' => $itemDiscount,
                     'subtotal' => $itemSubtotal,
                 ]);
 
-                // Kurangi stok produk (jika stok tidak null dan produk bukan temporary)
-                if ($product && $product->stock !== null) {
+                // Kurangi stok (varian jika ada, produk jika tidak)
+                if ($variant) {
+                    if ($variant->stock !== null) {
+                        $variant->decrement('stock', $item['quantity']);
+                    }
+                } elseif ($product && $product->stock !== null) {
                     $product->decrement('stock', $item['quantity']);
                 }
             }
@@ -286,10 +315,15 @@ class OrderController extends Controller
     {
         DB::beginTransaction(); // Mulai transaksi
         try {
-            // Sebelum menghapus order, kembalikan stok produk
+            // Sebelum menghapus order, kembalikan stok produk/varian
             foreach ($order->orderItems as $item) {
                 $product = Product::find($item->product_id);
-                if ($product && $product->stock !== null) { // Hanya jika stok tidak null
+                if ($item->product_variant_id) {
+                    $variant = \App\Models\ProductVariant::find($item->product_variant_id);
+                    if ($variant && $variant->stock !== null) {
+                        $variant->increment('stock', $item->quantity);
+                    }
+                } elseif ($product && $product->stock !== null) { // Hanya jika stok tidak null
                     $product->increment('stock', $item->quantity);
                 }
             }
