@@ -14,6 +14,7 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\UserController; // Import UserController
 use App\Http\Controllers\DashboardController; // Import DashboardController
+use App\Http\Controllers\PointSettingController; // Import PointSettingController
 
 // Public routes (accessible without authentication)
 Route::post('/register', [AuthController::class, 'register']);
@@ -27,8 +28,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
     Route::get('/profile', [AuthController::class, 'user']);
 
-    // Grup rute untuk 'cashier' dan 'admin' (Semua fitur POS kecuali manajemen user)
-    Route::middleware('role:admin,cashier')->group(function () {
+    // Grup rute untuk 'owner', 'manager', dan 'kasir' (Semua fitur POS kecuali manajemen user)
+    Route::middleware('role:owner,manager,kasir')->group(function () {
         Route::apiResource('categories', CategoryController::class);
         Route::get('/products/all', [ProductController::class, 'all']);
         Route::apiResource('products', ProductController::class);
@@ -43,10 +44,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/orders/{order}/print', [OrderController::class, 'print']);
         Route::apiResource('purchases', PurchaseController::class);
         Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
+        Route::get('/point-settings', [PointSettingController::class, 'index']);
     });
 
-    // Grup rute khusus untuk 'admin' (Manajemen User)
-    Route::middleware('role:admin')->group(function () {
+    // Pengaturan poin: owner & manager (kasir hanya membaca)
+    Route::middleware('role:owner,manager')->group(function () {
+        Route::put('/point-settings', [PointSettingController::class, 'update']);
+    });
+
+    // Grup rute khusus untuk 'owner' (Manajemen User)
+    Route::middleware('role:owner')->group(function () {
         Route::apiResource('users', UserController::class); // Endpoint untuk mengelola user
     });
 });

@@ -84,6 +84,7 @@ class ProductController extends Controller
                 'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,svg', 'max:2048'], // Validasi untuk file gambar (max 2MB)
                 'is_active' => ['boolean'],
                 'discount' => ['numeric', 'min:0', 'max:100'],
+                'points_earn' => ['nullable', 'integer', 'min:0'],
                 'variants' => ['nullable', 'array'],
                 'variants.*.name' => ['required_with:variants', 'string', 'max:255'],
                 'variants.*.sku' => ['nullable', 'string', 'max:255'],
@@ -93,6 +94,7 @@ class ProductController extends Controller
 
             // Ambil semua data dari request kecuali 'image' dan 'variants'
             $data = $request->except(['image', 'variants']);
+            $data['points_earn'] = (int) ($data['points_earn'] ?? 0);
 
             // Tangani upload gambar jika ada
             if ($request->hasFile('image')) {
@@ -170,6 +172,7 @@ class ProductController extends Controller
                 'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,svg', 'max:2048'], // Validasi untuk file gambar
                 'is_active' => ['boolean'],
                 'discount' => ['numeric', 'min:0', 'max:100'],
+                'points_earn' => ['nullable', 'integer', 'min:0'],
                 'remove_image' => ['boolean'], // Field opsional untuk menghapus gambar tanpa upload baru
                 'variants' => ['nullable', 'array'],
                 'variants.*.id' => ['nullable', 'integer', 'exists:product_variants,id'],
@@ -181,6 +184,7 @@ class ProductController extends Controller
 
             // Ambil semua data dari request kecuali 'image', 'remove_image', dan 'variants'
             $data = $request->except(['image', 'remove_image', 'variants']);
+            $data['points_earn'] = (int) ($data['points_earn'] ?? 0);
 
             if ($request->hasFile('image')) {
                 // Hapus gambar lama jika ada

@@ -27,7 +27,7 @@ class AuthController extends Controller
                 'name' => $request->name,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
-                'role' => 'user',
+                'role' => 'kasir',
             ]);
 
             // Untuk register, bisa langsung login dan generate token atau hanya register

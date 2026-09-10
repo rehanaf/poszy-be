@@ -20,6 +20,7 @@ class Product extends Model
         'image_url',
         'is_active',
         'discount',
+        'points_earn',
     ];
 
     // Relasi

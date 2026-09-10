@@ -17,6 +17,7 @@ class Customer extends Model
         'phone',
         'address',
         'profile_image_url',
+        'points_balance',
     ];
 
     // Relasi

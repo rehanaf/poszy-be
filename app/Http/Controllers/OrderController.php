@@ -103,6 +103,7 @@ class OrderController extends Controller
                 'items.*.quantity' => ['required', 'integer', 'min:1'],
                 'items.*.price' => ['required', 'numeric', 'min:0'], // 'price' is actual selling price
                 'items.*.discount' => ['nullable', 'numeric', 'min:0', 'max:100'], // Discount per item
+                'redeem_points' => ['nullable', 'integer', 'min:0'], // Poin yang ditukar customer
             ]);
 
             $user = Auth::user(); // Kasir yang membuat order
@@ -110,6 +111,7 @@ class OrderController extends Controller
 
             // Pastikan customer_name terisi, baik dari customer_id atau input manual
             $customerName = $request->input('customer_name');
+            $customer = null;
             if ($request->filled('customer_id')) {
                 $customer = \App\Models\Customer::find($request->customer_id);
                 if ($customer) {
@@ -117,6 +119,51 @@ class OrderController extends Controller
                 }
             }
 
+            // ===== Sistem Poin =====
+            $setting = \App\Models\PointSetting::firstOrCreate(['id' => 1]);
+            $subtotalBase = 0;
+            foreach ($request->input('items') as $item) {
+                $itemPrice = $item['price'];
+                $itemDiscount = $item['discount'] ?? 0;
+                $subtotalBase += $item['quantity'] * $itemPrice * (1 - ($itemDiscount / 100));
+            }
+            $pointsEarned = $this->calculateEarnedPoints($request->input('items'), $subtotalBase, $setting);
+
+            $redeemPoints = (int) $request->input('redeem_points', 0);
+            $pointsDiscount = 0.00;
+            if ($redeemPoints > 0) {
+                if (!$customer) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => 'Pilih pelanggan terlebih dahulu untuk menukar poin.'
+                    ], 400);
+                }
+                if ($setting->exchange_points <= 0 || $setting->exchange_discount_value <= 0) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => 'Penukaran poin belum diaktifkan pada pengaturan poin.'
+                    ], 400);
+                }
+                if ($redeemPoints % $setting->exchange_points !== 0) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => 'Poin yang ditukar harus kelipatan dari ' . $setting->exchange_points . ' poin.'
+                    ], 400);
+                }
+                if ($customer->points_balance < $redeemPoints) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => 'Poin pelanggan tidak mencukupi. Saldo: ' . $customer->points_balance . ' poin.'
+                    ], 400);
+                }
+                $units = intdiv($redeemPoints, $setting->exchange_points);
+                if ($setting->exchange_discount_type === 'percent') {
+                    $pointsDiscount = round($subtotalBase * ($setting->exchange_discount_value / 100) * $units, 2);
+                } else {
+                    $pointsDiscount = round($setting->exchange_discount_value * $units, 2);
+                }
+            }
+            // ===== End Sistem Poin =====
 
             // Create Order
             $order = Order::create([
@@ -129,6 +176,9 @@ class OrderController extends Controller
                 'payment_status' => $request->payment_status,
                 'discount_amount' => $request->discount_amount ?? 0.00, // Total diskon transaksi
                 'tax_amount' => $request->tax_amount ?? 0.00, // Total pajak transaksi
+                'points_earned' => $pointsEarned,
+                'points_redeemed' => $redeemPoints,
+                'points_discount' => $pointsDiscount,
                 'status' => 'completed', // Default completed for successful sale
                 'cashier_name' => $cashierName, // Simpan nama kasir
                 'notes' => $request->notes,
@@ -202,6 +252,16 @@ class OrderController extends Controller
                 }
             }
 
+            // Update saldo poin customer (jika order lunas)
+            if ($request->payment_status === 'paid' && $customer) {
+                if ($pointsEarned > 0) {
+                    $customer->increment('points_balance', $pointsEarned);
+                }
+                if ($redeemPoints > 0) {
+                    $customer->decrement('points_balance', $redeemPoints);
+                }
+            }
+
             DB::commit();
 
             return response()->json([
@@ -249,6 +309,33 @@ class OrderController extends Controller
         return view('receipt', [
             'order' => $order->load(['customer', 'paymentMethod', 'orderItems.product']),
         ]);
+    }
+
+    /**
+     * Hitung poin yang diperoleh dari transaksi (nominal) + poin produk (per barang).
+     */
+    private function calculateEarnedPoints(array $items, float $subtotal, \App\Models\PointSetting $setting): int
+    {
+        $points = 0;
+
+        // Poin dari transaksi (berdasarkan nominal)
+        if ($setting->earn_min_amount > 0 && $setting->earn_points > 0 && $subtotal >= $setting->earn_min_amount) {
+            if ($setting->earn_multiple) {
+                $points += intdiv((int) $subtotal, (int) $setting->earn_min_amount) * $setting->earn_points;
+            } else {
+                $points += $setting->earn_points;
+            }
+        }
+
+        // Poin dari barang (per unit produk yang punya poin)
+        $products = \App\Models\Product::whereIn('id', collect($items)->pluck('product_id')->filter())->get()->keyBy('id');
+        foreach ($items as $item) {
+            if (!empty($item['product_id']) && $products->has($item['product_id'])) {
+                $points += (int) $products[$item['product_id']]->points_earn * (int) $item['quantity'];
+            }
+        }
+
+        return $points;
     }
 
     /**
@@ -325,6 +412,19 @@ class OrderController extends Controller
                     }
                 } elseif ($product && $product->stock !== null) { // Hanya jika stok tidak null
                     $product->increment('stock', $item->quantity);
+                }
+            }
+
+            // Kembalikan poin: poin yang sudah didapat dikurangi, poin tukar dikembalikan
+            if ($order->customer_id) {
+                $customer = \App\Models\Customer::find($order->customer_id);
+                if ($customer) {
+                    if ($order->points_earned > 0) {
+                        $customer->decrement('points_balance', $order->points_earned);
+                    }
+                    if ($order->points_redeemed > 0) {
+                        $customer->increment('points_balance', $order->points_redeemed);
+                    }
                 }
             }
 

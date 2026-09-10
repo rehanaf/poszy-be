@@ -19,6 +19,9 @@ class Order extends Model
         'payment_status',
         'discount_amount',
         'tax_amount',
+        'points_earned',
+        'points_redeemed',
+        'points_discount',
         'status',
         'cashier_name', // Tetap diisi
     ];

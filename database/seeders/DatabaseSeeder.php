@@ -25,7 +25,7 @@ class DatabaseSeeder extends Seeder
             'name' => 'Andi Prasetyo',
             'email' => 'admin@poszy.test',
             'password' => Hash::make($password),
-            'role' => 'admin',
+            'role' => 'owner',
             'profile_image_url' => 'https://i.pravatar.cc/150?img=12',
         ]);
 
@@ -33,7 +33,7 @@ class DatabaseSeeder extends Seeder
             'name' => 'Rina Fitriani',
             'email' => 'cashier@poszy.test',
             'password' => Hash::make($password),
-            'role' => 'cashier',
+            'role' => 'kasir',
             'profile_image_url' => 'https://i.pravatar.cc/150?img=47',
         ]);
 
@@ -41,7 +41,7 @@ class DatabaseSeeder extends Seeder
             'name' => 'Deni Saputra',
             'email' => 'user@poszy.test',
             'password' => Hash::make($password),
-            'role' => 'user',
+            'role' => 'manager',
             'profile_image_url' => 'https://i.pravatar.cc/150?img=33',
         ]);
 

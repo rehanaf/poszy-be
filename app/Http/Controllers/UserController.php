@@ -26,7 +26,7 @@ class UserController extends Controller
         }
 
         // Filter by role
-        if ($request->has('role') && in_array($request->role, ['admin', 'cashier', 'user'])) {
+        if ($request->has('role') && in_array($request->role, ['owner', 'manager', 'kasir'])) {
             $query->where('role', $request->role);
         }
 
@@ -66,7 +66,7 @@ class UserController extends Controller
                 'name' => ['required', 'string', 'max:255'],
                 'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
                 'password' => ['required', 'string', 'min:8', 'confirmed'],
-                'role' => ['required', 'string', 'in:admin,cashier,user'],
+                'role' => ['required', 'string', 'in:owner,manager,kasir'],
                 'profile_image_url' => ['nullable', 'url'],
             ]);
 
@@ -115,7 +115,7 @@ class UserController extends Controller
                 'name' => ['required', 'string', 'max:255'],
                 'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
                 'password' => ['nullable', 'string', 'min:8', 'confirmed'],
-                'role' => ['required', 'string', 'in:admin,cashier,user'],
+                'role' => ['required', 'string', 'in:owner,manager,kasir'],
                 'profile_image_url' => ['nullable', 'url'],
             ]);
 
