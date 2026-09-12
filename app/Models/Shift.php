@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Shift extends Model
 {
-    use HasFactory;
+    use HasFactory, HasStore;
 
     protected $fillable = [
         'user_id',
@@ -16,6 +16,7 @@ class Shift extends Model
         'starting_cash',
         'ending_cash',
         'notes',
+        'store_id',
     ];
 
     protected $casts = [

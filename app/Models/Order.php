@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Order extends Model
 {
-    use HasFactory;
+    use HasFactory, HasStore;
 
     protected $fillable = [
         'user_id',
@@ -24,6 +24,7 @@ class Order extends Model
         'points_discount',
         'status',
         'cashier_name', // Tetap diisi
+        'store_id',
     ];
 
     protected $casts = [

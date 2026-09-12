@@ -7,12 +7,13 @@ use Illuminate\Database\Eloquent\Model;
 
 class PaymentMethod extends Model
 {
-    use HasFactory;
+    use HasFactory, HasStore;
 
     protected $fillable = [
         'name',
         'description',
         'is_active',
+        'store_id',
     ];
 
     // Relasi

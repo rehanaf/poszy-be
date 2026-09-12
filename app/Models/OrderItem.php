@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class OrderItem extends Model
 {
-    use HasFactory;
+    use HasFactory, HasStore;
 
     protected $fillable = [
         'order_id',
@@ -19,6 +19,7 @@ class OrderItem extends Model
         'subtotal',
         'product_name', // Nama produk (bisa produk sementara)
         'variant_name',
+        'store_id',
     ];
 
     // Relasi

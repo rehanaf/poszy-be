@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class PurchaseItem extends Model
 {
-    use HasFactory;
+    use HasFactory, HasStore;
 
     protected $fillable = [
         'purchase_id',
@@ -15,6 +15,7 @@ class PurchaseItem extends Model
         'quantity',
         'cost_price',
         'subtotal',
+        'store_id',
     ];
 
     // Relasi

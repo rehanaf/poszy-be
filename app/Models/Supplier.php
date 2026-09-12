@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Supplier extends Model
 {
-    use HasFactory;
+    use HasFactory, HasStore;
 
     protected $fillable = [
         'name',
@@ -15,6 +15,7 @@ class Supplier extends Model
         'phone',
         'email',
         'address',
+        'store_id',
     ];
 
     // Relasi

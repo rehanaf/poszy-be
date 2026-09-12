@@ -119,8 +119,18 @@ class OrderController extends Controller
                 }
             }
 
-            // ===== Sistem Poin =====
-            $setting = \App\Models\PointSetting::firstOrCreate(['id' => 1]);
+            // ===== Sistem Poin (per toko) =====
+            $setting = \App\Models\PointSetting::firstOrCreate(
+                ['store_id' => $user->store_id ?? \App\Models\Store::defaultId()],
+                [
+                    'earn_min_amount' => 100000,
+                    'earn_points' => 10,
+                    'earn_multiple' => true,
+                    'exchange_points' => 100,
+                    'exchange_discount_value' => 10,
+                    'exchange_discount_type' => 'percent',
+                ]
+            );
             $subtotalBase = 0;
             foreach ($request->input('items') as $item) {
                 $itemPrice = $item['price'];
@@ -288,7 +298,7 @@ class OrderController extends Controller
      */
     public function show(Order $order)
     {
-        return response()->json($order->load(['customer', 'paymentMethod', 'orderItems.product']), 200);
+        return response()->json($order->load(['customer', 'paymentMethod', 'orderItems.product', 'store']), 200);
     }
 
     /**
@@ -296,8 +306,10 @@ class OrderController extends Controller
      */
     public function pdf(Order $order)
     {
+        $order->load(['customer', 'paymentMethod', 'orderItems.product', 'store']);
         return view('receipt', [
-            'order' => $order->load(['customer', 'paymentMethod', 'orderItems.product']),
+            'order' => $order,
+            'store' => $order->store ?? \App\Models\Store::find($order->store_id),
         ]);
     }
 
@@ -306,8 +318,10 @@ class OrderController extends Controller
      */
     public function print(Order $order)
     {
+        $order->load(['customer', 'paymentMethod', 'orderItems.product', 'store']);
         return view('receipt', [
-            'order' => $order->load(['customer', 'paymentMethod', 'orderItems.product']),
+            'order' => $order,
+            'store' => $order->store ?? \App\Models\Store::find($order->store_id),
         ]);
     }
 

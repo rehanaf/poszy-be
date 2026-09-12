@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class PointSetting extends Model
 {
+    use HasStore;
+
     protected $fillable = [
         'earn_min_amount',
         'earn_points',
@@ -13,6 +15,7 @@ class PointSetting extends Model
         'exchange_points',
         'exchange_discount_value',
         'exchange_discount_type',
+        'store_id',
     ];
 
     protected $casts = [

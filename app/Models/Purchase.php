@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Purchase extends Model
 {
-    use HasFactory;
+    use HasFactory, HasStore;
 
     protected $fillable = [
         'supplier_id',
@@ -16,6 +16,7 @@ class Purchase extends Model
         'total_amount',
         'status',
         'notes',
+        'store_id',
     ];
 
     protected $casts = [

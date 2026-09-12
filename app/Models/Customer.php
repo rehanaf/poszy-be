@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Customer extends Model
 {
-    use HasFactory;
+    use HasFactory, HasStore;
 
     protected $fillable = [
         'customer_code',
@@ -18,6 +18,7 @@ class Customer extends Model
         'address',
         'profile_image_url',
         'points_balance',
+        'store_id',
     ];
 
     // Relasi

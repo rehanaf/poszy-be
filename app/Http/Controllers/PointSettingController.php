@@ -10,7 +10,18 @@ class PointSettingController extends Controller
 {
     private function getSetting()
     {
-        return PointSetting::firstOrCreate(['id' => 1]);
+        $storeId = \App\Support\CurrentStore::current() ?? \App\Models\Store::defaultId();
+        return PointSetting::firstOrCreate(
+            ['store_id' => $storeId],
+            [
+                'earn_min_amount' => 100000,
+                'earn_points' => 10,
+                'earn_multiple' => true,
+                'exchange_points' => 100,
+                'exchange_discount_value' => 10,
+                'exchange_discount_type' => 'percent',
+            ]
+        );
     }
 
     public function index()

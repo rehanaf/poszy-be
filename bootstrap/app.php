@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Role Middleware
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckUserRole::class,
+            'store.context' => \App\Http\Middleware\SetStoreContext::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

@@ -28,6 +28,7 @@ class AuthController extends Controller
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
                 'role' => 'kasir',
+                'store_id' => \App\Models\Store::defaultId(),
             ]);
 
             // Untuk register, bisa langsung login dan generate token atau hanya register
@@ -77,6 +78,7 @@ class AuthController extends Controller
             return response()->json([
                 'message' => 'Login successful.',
                 'user' => $user,
+                'store' => $user->store,
                 'token' => $token, // Kirimkan token ke frontend
                 'token_type' => 'Bearer',
             ], 200);
@@ -110,6 +112,9 @@ class AuthController extends Controller
      */
     public function user(Request $request)
     {
-        return response()->json(['user' => $request->user()], 200);
+        return response()->json([
+            'user' => $request->user(),
+            'store' => $request->user()->store,
+        ], 200);
     }
 }

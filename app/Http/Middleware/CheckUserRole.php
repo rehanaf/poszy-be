@@ -23,6 +23,11 @@ class CheckUserRole
 
         $user = Auth::user();
 
+        // superadmin platform bisa mengakses semua
+        if ($user->role === 'superadmin') {
+            return $next($request);
+        }
+
         // Periksa apakah role user ada dalam daftar role yang diizinkan
         if (! in_array($user->role, $roles)) {
             return response()->json(['message' => 'Forbidden. You do not have the necessary permissions.'], 403);

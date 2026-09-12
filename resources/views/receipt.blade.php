@@ -67,6 +67,8 @@
 
         h1 { font-size: calc(var(--fs) + 6px); }
         .subtitle { font-size: calc(var(--fs) - 2px); }
+        .store-logo { max-width: calc(var(--rw) - 12mm); max-height: 22mm; object-fit: contain; margin: 0 auto; display: block; }
+        body.sz-58 .store-logo { max-height: 14mm; }
 
         /* Ukuran kertas untuk print, ikut kelas terpilih */
         body.sz-58 .receipt { page: p58; }
@@ -90,22 +92,41 @@
         }
     </style>
 </head>
-<body class="sz-80">
+@php
+    $storeName = $store->name ?? 'POSZY';
+    $storeTagline = $store->tagline ?? 'Point Of Sale';
+    $defaultSize = isset($store->default_receipt_size) ? $store->default_receipt_size : '80';
+@endphp
+<body class="sz-{{ $defaultSize }}">
     <div class="picker no-print">
         <strong>Ukuran kertas:</strong>
         <label><input type="radio" name="size" value="58">58mm</label>
-        <label><input type="radio" name="size" value="80" checked>80mm</label>
-        <label><input type="radio" name="size" value="a4">A4</label>
+        <label><input type="radio" name="size" value="80" @if($defaultSize==='80')checked @endif>80mm</label>
+        <label><input type="radio" name="size" value="a4" @if($defaultSize==='a4')checked @endif>A4</label>
         <button onclick="window.print()" style="margin-left:auto;padding:4px 12px;">Print / Save as PDF</button>
     </div>
 
     <div class="receipt">
-        <h1 class="center bold">POSZY</h1>
-        <p class="center subtitle muted">Point Of Sale</p>
+        @if($store->logo_url ?? null)
+            <img src="{{ $store->logo_url }}" alt="" class="store-logo">
+        @endif
+        <h1 class="center bold">{{ $storeName }}</h1>
+        @if($storeTagline)
+            <p class="center subtitle muted">{{ $storeTagline }}</p>
+        @endif
+        @if($store->address ?? null)
+            <p class="center muted">{{ $store->address }}</p>
+        @endif
         <div class="line"></div>
 
         <p>Receipt No : {{ $order->id }}</p>
         <p>Date      : {{ $order->order_date?->format('d M Y H:i') }}</p>
+        @if($store->phone ?? null)
+            <p>Phone     : {{ $store->phone }}</p>
+        @endif
+        @if($store->nip ?? null)
+            <p>NIP       : {{ $store->nip }}</p>
+        @endif
         <p>Cashier   : {{ $order->cashier_name }}</p>
         <p>Customer  : {{ $order->customer_name ?? ($order->customer?->name ?? '-') }}</p>
         <p>Payment   : {{ $order->paymentMethod?->name ?? '-' }}</p>
@@ -178,15 +199,15 @@
         </div>
 
         <div class="line"></div>
-        <p class="center">Terima kasih telah berbelanja di POSZY!</p>
+        <p class="center">{{ $store->footer ?? 'Terima kasih telah berbelanja di ' . $storeName . '!' }}</p>
         <p class="center muted">#{{ $order->id }}</p>
     </div>
 
     <script>
         (function () {
             var q = new URLSearchParams(window.location.search).get('size');
-            var current = q || localStorage.getItem('receipt-size') || '80';
-            if (!['58', '80', 'a4'].includes(current)) current = '80';
+            var current = q || localStorage.getItem('receipt-size') || '{{ $defaultSize }}';
+            if (!['58', '80', 'a4'].includes(current)) current = '{{ $defaultSize }}';
             document.body.className = 'sz-' + current;
             var inputs = document.querySelectorAll('.picker input[name="size"]');
             inputs.forEach(function (el) {

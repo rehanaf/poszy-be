@@ -8,9 +8,11 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens; // Penting untuk Sanctum
 
+use App\Models\HasStore;
+
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, HasStore;
 
     /**
      * The attributes that are mass assignable.
@@ -23,6 +25,7 @@ class User extends Authenticatable
         'password',
         'role',
         'profile_image_url',
+        'store_id',
     ];
 
     /**
@@ -67,5 +70,10 @@ class User extends Authenticatable
     public function expenses()
     {
         return $this->hasMany(Expense::class);
+    }
+
+    public function store()
+    {
+        return $this->belongsTo(Store::class, 'store_id');
     }
 }

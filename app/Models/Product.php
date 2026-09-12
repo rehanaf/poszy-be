@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Product extends Model
 {
-    use HasFactory;
+    use HasFactory, HasStore;
 
     protected $fillable = [
         'category_id',
@@ -21,6 +21,7 @@ class Product extends Model
         'is_active',
         'discount',
         'points_earn',
+        'store_id',
     ];
 
     // Relasi

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Expense extends Model
 {
-    use HasFactory;
+    use HasFactory, HasStore;
 
     protected $fillable = [
         'user_id',
@@ -16,6 +16,7 @@ class Expense extends Model
         'expense_date',
         'category',
         'notes',
+        'store_id',
     ];
 
     protected $casts = [

@@ -15,13 +15,14 @@ use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\UserController; // Import UserController
 use App\Http\Controllers\DashboardController; // Import DashboardController
 use App\Http\Controllers\PointSettingController; // Import PointSettingController
+use App\Http\Controllers\StoreController; // Import StoreController
 
 // Public routes (accessible without authentication)
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
 // Protected routes (require authentication)
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'store.context'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
 
     // Rute untuk mendapatkan user yang sedang login (bisa diakses semua user terautentikasi)
@@ -45,11 +46,26 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('purchases', PurchaseController::class);
         Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
         Route::get('/point-settings', [PointSettingController::class, 'index']);
+        Route::get('/store', [StoreController::class, 'mine']); // Informasi branding toko sendiri
     });
 
     // Pengaturan poin: owner & manager (kasir hanya membaca)
     Route::middleware('role:owner,manager')->group(function () {
         Route::put('/point-settings', [PointSettingController::class, 'update']);
+    });
+
+    // Branding toko: owner (dan superadmin)
+    Route::middleware('role:owner')->group(function () {
+        Route::put('/store', [StoreController::class, 'updateMine']);
+        Route::post('/store/logo', [StoreController::class, 'uploadLogo']);
+    });
+
+    // Kelola semua toko: superadmin platform
+    Route::middleware('role:superadmin')->group(function () {
+        Route::get('/stores', [StoreController::class, 'index']);
+        Route::post('/stores', [StoreController::class, 'store']);
+        Route::get('/stores/{store}', [StoreController::class, 'show']);
+        Route::put('/stores/{store}', [StoreController::class, 'update']);
     });
 
     // Grup rute khusus untuk 'owner' (Manajemen User)
