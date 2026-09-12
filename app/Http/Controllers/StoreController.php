@@ -12,6 +12,15 @@ use Illuminate\Validation\ValidationException;
 class StoreController extends Controller
 {
     /**
+     * Bangun URL publik absolut (selalu https) untuk aset storage.
+     */
+    private function publicUrl(string $path): string
+    {
+        $url = preg_replace('#^https?://#', 'https://', (string) config('app.url'));
+        return rtrim($url, '/') . '/' . ltrim($path, '/');
+    }
+
+    /**
      * Pengaturan toko milik user yang sedang login (semua role POS).
      */
     public function mine(Request $request)
@@ -20,7 +29,7 @@ class StoreController extends Controller
         if (! $store) {
             return response()->json(['message' => 'Store not found.'], 404);
         }
-        return response()->json(['store' => $store], 200);
+        return response()->json($store, 200);
     }
 
     /**
@@ -73,7 +82,7 @@ class StoreController extends Controller
             ]);
 
             $path = $request->file('logo')->store('logos', 'public');
-            $store->logo_url = url(Storage::url($path));
+            $store->logo_url = $this->publicUrl(Storage::url($path));
             $store->save();
 
             return response()->json([
