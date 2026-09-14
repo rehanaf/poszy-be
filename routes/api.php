@@ -18,8 +18,7 @@ use App\Http\Controllers\PointSettingController; // Import PointSettingControlle
 use App\Http\Controllers\StoreController; // Import StoreController
 
 // Public routes (accessible without authentication)
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
 
 // Protected routes (require authentication)
 Route::middleware(['auth:sanctum', 'store.context'])->group(function () {

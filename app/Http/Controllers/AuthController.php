@@ -12,49 +12,6 @@ use Illuminate\Validation\ValidationException;
 class AuthController extends Controller
 {
     /**
-     * Handle user registration.
-     */
-    public function register(Request $request)
-    {
-        try {
-            $request->validate([
-                'name' => ['required', 'string', 'max:255'],
-                'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-                'password' => ['required', 'string', 'min:8', 'confirmed'],
-            ]);
-
-            $user = User::create([
-                'name' => $request->name,
-                'email' => $request->email,
-                'password' => Hash::make($request->password),
-                'role' => 'kasir',
-                'store_id' => \App\Models\Store::defaultId(),
-            ]);
-
-            // Untuk register, bisa langsung login dan generate token atau hanya register
-            // Kita akan generate token untuk kemudahan, mirip dengan alur login
-            $token = $user->createToken('auth_token')->plainTextToken;
-
-            return response()->json([
-                'message' => 'User registered successfully.',
-                'user' => $user,
-                'token' => $token, // Mengembalikan token juga
-                'token_type' => 'Bearer',
-            ], 201);
-        } catch (ValidationException $e) {
-            return response()->json([
-                'message' => 'Validation failed.',
-                'errors' => $e->errors(),
-            ], 422);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'An error occurred during registration.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
      * Handle user login.
      */
     public function login(Request $request)
@@ -72,6 +29,20 @@ class AuthController extends Controller
             }
 
             $user = $request->user();
+
+            // Tolak login jika store nonaktif (superadmin tidak terpengaruh).
+            if ($user->role !== 'superadmin') {
+                $store = $user->store;
+                if (! $store || ! $store->is_active) {
+                    Auth::logout();
+                    $user->currentAccessToken()?->delete();
+
+                    return response()->json([
+                        'message' => 'Akun toko sedang nonaktif. Hubungi administrator.',
+                    ], 403);
+                }
+            }
+
             // Hasilkan token personal access token untuk user yang berhasil login
             $token = $user->createToken('auth_token')->plainTextToken; // 'auth_token' adalah nama token
 
