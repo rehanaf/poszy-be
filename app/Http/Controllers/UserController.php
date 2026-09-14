@@ -49,7 +49,7 @@ class UserController extends Controller
 
         // Masukkan role per toko ke tiap user
         $users->getCollection()->transform(function ($user) {
-            $user->setAttribute('role', $user->roleInStore(\App\Support\CurrentStore::current()));
+            $user->setAttribute('store_role', $user->roleInStore(\App\Support\CurrentStore::current()));
             return $user->makeHidden('password');
         });
 
@@ -112,7 +112,7 @@ class UserController extends Controller
      */
     public function show(User $user)
     {
-        $user->setAttribute('role', $user->roleInStore(\App\Support\CurrentStore::current()));
+        $user->setAttribute('store_role', $user->roleInStore(\App\Support\CurrentStore::current()));
         return response()->json($user->makeHidden('password'), 200);
     }
 
@@ -142,7 +142,7 @@ class UserController extends Controller
             $storeId = \App\Support\CurrentStore::current();
             if ($storeId !== null) {
                 $user->stores()->syncWithoutDetaching([$storeId => ['role' => $request->role]]);
-                $user->setAttribute('role', $request->role);
+                $user->setAttribute('store_role', $request->role);
             }
 
             return response()->json([
