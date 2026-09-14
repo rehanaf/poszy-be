@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Store;
 use App\Models\User;
+use App\Support\CurrentStore;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -11,6 +13,48 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    /**
+     * Handle user registration (buka untuk umum).
+     * User baru belum punya toko; langkah berikutnya "Buat Toko Pertama".
+     */
+    public function register(Request $request)
+    {
+        try {
+            $request->validate([
+                'name' => ['required', 'string', 'max:255'],
+                'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+                'password' => ['required', 'string', 'min:8', 'confirmed'],
+            ]);
+
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'role' => 'user',
+            ]);
+
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            return response()->json([
+                'message' => 'User registered successfully.',
+                'user' => $user->makeHidden('password'),
+                'stores' => [],
+                'token' => $token,
+                'token_type' => 'Bearer',
+            ], 201);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => 'Validation failed.',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'An error occurred during registration.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
     /**
      * Handle user login.
      */
@@ -29,28 +73,13 @@ class AuthController extends Controller
             }
 
             $user = $request->user();
-
-            // Tolak login jika store nonaktif (superadmin tidak terpengaruh).
-            if ($user->role !== 'superadmin') {
-                $store = $user->store;
-                if (! $store || ! $store->is_active) {
-                    Auth::logout();
-                    $user->currentAccessToken()?->delete();
-
-                    return response()->json([
-                        'message' => 'Akun toko sedang nonaktif. Hubungi administrator.',
-                    ], 403);
-                }
-            }
-
-            // Hasilkan token personal access token untuk user yang berhasil login
-            $token = $user->createToken('auth_token')->plainTextToken; // 'auth_token' adalah nama token
+            $token = $user->createToken('auth_token')->plainTextToken;
 
             return response()->json([
                 'message' => 'Login successful.',
-                'user' => $user,
-                'store' => $user->store,
-                'token' => $token, // Kirimkan token ke frontend
+                'user' => $user->makeHidden('password'),
+                'stores' => $this->userStores($user),
+                'token' => $token,
                 'token_type' => 'Bearer',
             ], 200);
         } catch (ValidationException $e) {
@@ -58,7 +87,7 @@ class AuthController extends Controller
                 'message' => 'Validation failed.',
                 'errors' => $e->errors(),
             ], 422);
-        } catch (\Exception | AuthenticationException $e) { // Tangani AuthenticationException juga
+        } catch (\Exception | AuthenticationException $e) {
             return response()->json([
                 'message' => 'An error occurred during login.',
                 'error' => $e->getMessage(),
@@ -71,8 +100,6 @@ class AuthController extends Controller
      */
     public function logout(Request $request)
     {
-        // Hapus token yang digunakan saat ini
-        // Jika menggunakan Personal Access Token (Bearer Token), ini adalah cara logoutnya
         $request->user()->currentAccessToken()->delete();
 
         return response()->json(['message' => 'Logout successful. Token revoked.'], 200);
@@ -83,9 +110,64 @@ class AuthController extends Controller
      */
     public function user(Request $request)
     {
+        $user = $request->user();
+
         return response()->json([
-            'user' => $request->user(),
-            'store' => $request->user()->store,
+            'user' => $user->makeHidden('password'),
+            'stores' => $this->userStores($user),
+            'store' => $this->storeById(CurrentStore::current()),
         ], 200);
+    }
+
+    /**
+     * Set/validasi toko aktif yang dipilih user.
+     */
+    public function switchStore(Request $request)
+    {
+        $user = $request->user();
+
+        $request->validate([
+            'store_id' => ['required', 'integer'],
+        ]);
+
+        $storeId = $request->input('store_id');
+        if (! $user->hasStoreAccess($storeId)) {
+            return response()->json(['message' => 'You do not have access to this store.'], 403);
+        }
+
+        return response()->json([
+            'message' => 'Store switched.',
+            'store' => $this->storeById($storeId),
+        ], 200);
+    }
+
+    /**
+     * Daftar toko yang bisa diakses user (dengan role per toko dari pivot).
+     * Superadmin: seluruh toko.
+     */
+    private function userStores(User $user): array
+    {
+        if ($user->isSuperAdmin()) {
+            return Store::query()
+                ->orderBy('id')
+                ->get()
+                ->map(fn (Store $s) => $s->only(['id', 'name', 'logo_url', 'tagline', 'is_active', 'default_receipt_size']) + ['role' => 'superadmin'])
+                ->all();
+        }
+
+        return $user->stores()
+            ->orderBy('stores.id')
+            ->get()
+            ->map(fn (Store $s) => $s->only(['id', 'name', 'logo_url', 'tagline', 'is_active', 'default_receipt_size']) + ['role' => $s->pivot->role])
+            ->all();
+    }
+
+    private function storeById(?int $id): ?Store
+    {
+        if ($id === null) {
+            return null;
+        }
+
+        return Store::find($id);
     }
 }

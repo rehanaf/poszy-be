@@ -8,11 +8,9 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens; // Penting untuk Sanctum
 
-use App\Models\HasStore;
-
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable, HasStore;
+    use HasApiTokens, HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -25,7 +23,6 @@ class User extends Authenticatable
         'password',
         'role',
         'profile_image_url',
-        'store_id',
     ];
 
     /**
@@ -51,6 +48,48 @@ class User extends Authenticatable
         ];
     }
 
+    public function isSuperAdmin(): bool
+    {
+        return $this->role === 'superadmin';
+    }
+
+    /**
+     * Toko-toko yang dapat diakses user (via pivot store_user, berisi role per toko).
+     */
+    public function stores()
+    {
+        return $this->belongsToMany(Store::class, 'store_user')
+            ->withPivot(['role'])
+            ->withTimestamps();
+    }
+
+    /**
+     * Role user pada sebuah toko (null jika tidak punya akses).
+     */
+    public function roleInStore(?int $storeId): ?string
+    {
+        if ($storeId === null) {
+            return null;
+        }
+
+        return $this->stores()->where('store_user.store_id', $storeId)->value('store_user.role');
+    }
+
+    /**
+     * Cek apakah user punya akses ke toko tertentu.
+     */
+    public function hasStoreAccess(?int $storeId): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+        if ($storeId === null) {
+            return false;
+        }
+
+        return $this->stores()->where('store_user.store_id', $storeId)->exists();
+    }
+
     // Relasi
     public function orders()
     {
@@ -70,10 +109,5 @@ class User extends Authenticatable
     public function expenses()
     {
         return $this->hasMany(Expense::class);
-    }
-
-    public function store()
-    {
-        return $this->belongsTo(Store::class, 'store_id');
     }
 }

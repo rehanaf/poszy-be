@@ -2,10 +2,11 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\CurrentStore;
 use Closure;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Auth;
+use Symfony\Component\HttpFoundation\Response;
 
 class CheckUserRole
 {
@@ -24,12 +25,18 @@ class CheckUserRole
         $user = Auth::user();
 
         // superadmin platform bisa mengakses semua
-        if ($user->role === 'superadmin') {
+        if ($user->isSuperAdmin()) {
             return $next($request);
         }
 
-        // Periksa apakah role user ada dalam daftar role yang diizinkan
-        if (! in_array($user->role, $roles)) {
+        // Role dari user pada toko yang sedang aktif (via pivot store_user).
+        $storeId = CurrentStore::current();
+        if ($storeId === null) {
+            return response()->json(['message' => 'No store selected.'], 403);
+        }
+
+        $storeRole = $user->roleInStore($storeId);
+        if (! $storeRole || ! in_array($storeRole, $roles)) {
             return response()->json(['message' => 'Forbidden. You do not have the necessary permissions.'], 403);
         }
 

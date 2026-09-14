@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Store;
 use App\Models\User;
+use App\Support\CurrentStore;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -21,11 +22,20 @@ class StoreController extends Controller
     }
 
     /**
-     * Pengaturan toko milik user yang sedang login (semua role POS).
+     * Toko aktif user (berdasarkan CurrentStore yang di-set middleware).
+     */
+    private function currentStore(): ?Store
+    {
+        $id = CurrentStore::current();
+        return $id ? Store::find($id) : null;
+    }
+
+    /**
+     * Pengaturan toko aktif (semua user POS).
      */
     public function mine(Request $request)
     {
-        $store = $request->user()->store;
+        $store = $this->currentStore();
         if (! $store) {
             return response()->json(['message' => 'Store not found.'], 404);
         }
@@ -33,12 +43,12 @@ class StoreController extends Controller
     }
 
     /**
-     * Perbarui branding toko milik user (owner / superadmin).
+     * Perbarui branding toko aktif.
      */
     public function updateMine(Request $request)
     {
         try {
-            $store = $request->user()->store;
+            $store = $this->currentStore();
             if (! $store) {
                 return response()->json(['message' => 'Store not found.'], 404);
             }
@@ -67,12 +77,12 @@ class StoreController extends Controller
     }
 
     /**
-     * Upload logo toko (owner / superadmin).
+     * Upload logo toko aktif.
      */
     public function uploadLogo(Request $request)
     {
         try {
-            $store = $request->user()->store;
+            $store = $this->currentStore();
             if (! $store) {
                 return response()->json(['message' => 'Store not found.'], 404);
             }
@@ -96,38 +106,53 @@ class StoreController extends Controller
         }
     }
 
-    // ===================== SUPERADMIN (kelola semua toko) =====================
+    // ===================== Daftar / buat toko =====================
 
-    public function index()
+    /**
+     * Daftar toko: superadmin lihat semua, user biasa lihat toko miliknya.
+     */
+    public function index(Request $request)
     {
-        $stores = Store::query()
-            ->withCount('users')
-            ->paginate(10);
+        $user = $request->user();
+
+        $query = Store::query();
+
+        if (! $user->isSuperAdmin()) {
+            $query->whereHas('users', fn ($q) => $q->where('store_user.user_id', $user->id));
+        }
+
+        $stores = $query->withCount('users')->with('owner:id,name,email')->paginate(10);
 
         return response()->json($stores, 200);
     }
 
-    public function show(Store $store)
+    public function show(Store $store, Request $request)
     {
-        return response()->json(['store' => $store->loadCount('users')], 200);
+        if (! $request->user()->hasStoreAccess($store->id)) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        return response()->json(['store' => $store->loadCount('users')->load('owner')], 200);
     }
 
     /**
-     * Buat toko baru beserta akun owner-nya.
+     * Buat toko baru. Semua user login boleh buat:
+     * - Tanpa owner_email => user yang login otomatis jadi owner.
+     * - Dengan owner_email (superadmin) => buat user baru dan jadikan owner.
      */
     public function store(Request $request)
     {
         try {
             $request->validate([
                 'name' => ['required', 'string', 'max:255'],
-                'owner_name' => ['required', 'string', 'max:255'],
-                'owner_email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
-                'owner_password' => ['required', 'string', 'min:8'],
                 'tagline' => ['nullable', 'string', 'max:255'],
                 'address' => ['nullable', 'string', 'max:255'],
                 'phone' => ['nullable', 'string', 'max:40'],
                 'nip' => ['nullable', 'string', 'max:40'],
                 'default_receipt_size' => ['nullable', 'string', 'in:58,80,a4'],
+                'owner_name' => ['nullable', 'string', 'max:255'],
+                'owner_email' => ['nullable', 'string', 'email', 'max:255', 'unique:users,email'],
+                'owner_password' => ['nullable', 'string', 'min:8'],
             ]);
 
             $store = Store::create([
@@ -140,13 +165,20 @@ class StoreController extends Controller
                 'is_active' => true,
             ]);
 
-            $owner = User::create([
-                'name' => $request->owner_name,
-                'email' => $request->owner_email,
-                'password' => Hash::make($request->owner_password),
-                'role' => 'owner',
-                'store_id' => $store->id,
-            ]);
+            if ($request->filled('owner_email')) {
+                $owner = User::create([
+                    'name' => $request->input('owner_name', $request->name),
+                    'email' => $request->owner_email,
+                    'password' => Hash::make($request->input('owner_password', random_bytes(16))),
+                    'role' => 'user',
+                ]);
+            } else {
+                $owner = $request->user();
+            }
+
+            $store->users()->attach($owner->id, ['role' => 'owner']);
+            $store->owner_id = $owner->id;
+            $store->save();
 
             return response()->json([
                 'message' => 'Store created successfully.',
@@ -161,10 +193,16 @@ class StoreController extends Controller
     }
 
     /**
-     * Perbarui toko apa pun (superadmin).
+     * Perbarui toko apa pun (superadmin / owner toko tsb).
      */
     public function update(Request $request, Store $store)
     {
+        $user = $request->user();
+
+        if (! $user->isSuperAdmin() && $user->roleInStore($store->id) !== 'owner') {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
         try {
             $validated = $request->validate([
                 'name' => ['sometimes', 'string', 'max:255'],

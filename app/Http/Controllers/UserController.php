@@ -10,12 +10,12 @@ use Illuminate\Support\Facades\Auth; // Pastikan ini di-import
 
 class UserController extends Controller
 {
-    /**
-     * Display a listing of the resource with search, pagination, sorting, and filtering.
-     */
     public function index(Request $request)
     {
-        $query = User::query();
+        $storeId = \App\Support\CurrentStore::current();
+
+        // User yang menjadi anggota toko aktif (via pivot store_user).
+        $query = User::query()->whereHas('stores', fn ($q) => $q->where('store_user.store_id', $storeId));
 
         // Search by name or email
         if ($request->has('search') && $request->search != '') {
@@ -25,9 +25,9 @@ class UserController extends Controller
             });
         }
 
-        // Filter by role
+        // Filter by role (role per toko dari pivot)
         if ($request->has('role') && in_array($request->role, ['owner', 'manager', 'kasir'])) {
-            $query->where('role', $request->role);
+            $query->whereHas('stores', fn ($q) => $q->where('store_user.store_id', $storeId)->where('store_user.role', $request->role));
         }
 
         // Sorting
@@ -47,8 +47,9 @@ class UserController extends Controller
         $perPage = $request->get('per_page', 10); // Default 10 items per page
         $users = $query->paginate($perPage);
 
-        // Make sure to hide password from the paginated response
+        // Masukkan role per toko ke tiap user
         $users->getCollection()->transform(function ($user) {
+            $user->setAttribute('role', $user->roleInStore(\App\Support\CurrentStore::current()));
             return $user->makeHidden('password');
         });
 
@@ -70,13 +71,23 @@ class UserController extends Controller
                 'profile_image_url' => ['nullable', 'url'],
             ]);
 
+            $storeId = \App\Support\CurrentStore::current();
+            if ($storeId === null) {
+                return response()->json(['message' => 'No store selected.'], 403);
+            }
+
             $user = User::create([
                 'name' => $request->name,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
-                'role' => $request->role,
+                'role' => 'user',
                 'profile_image_url' => $request->profile_image_url,
             ]);
+
+            // Kaitkan user ke toko aktif dengan role dari pivot.
+            $user->stores()->attach($storeId, ['role' => $request->role]);
+
+            $user->setAttribute('role', $request->role);
 
             return response()->json([
                 'message' => 'User created successfully.',
@@ -101,6 +112,7 @@ class UserController extends Controller
      */
     public function show(User $user)
     {
+        $user->setAttribute('role', $user->roleInStore(\App\Support\CurrentStore::current()));
         return response()->json($user->makeHidden('password'), 200);
     }
 
@@ -119,12 +131,19 @@ class UserController extends Controller
                 'profile_image_url' => ['nullable', 'url'],
             ]);
 
-            $data = $request->except('password');
+            $data = $request->except(['password', 'role']);
             if ($request->filled('password')) {
                 $data['password'] = Hash::make($request->password);
             }
 
             $user->update($data);
+
+            // Update role per toko (pivot store_user) pada toko aktif.
+            $storeId = \App\Support\CurrentStore::current();
+            if ($storeId !== null) {
+                $user->stores()->syncWithoutDetaching([$storeId => ['role' => $request->role]]);
+                $user->setAttribute('role', $request->role);
+            }
 
             return response()->json([
                 'message' => 'User updated successfully.',
@@ -152,7 +171,14 @@ class UserController extends Controller
                 ], 403);
             }
 
-            $user->delete();
+            $storeId = \App\Support\CurrentStore::current();
+
+            // Hapus keterkaitan user dari toko aktif (data global user tetap).
+            if ($storeId !== null) {
+                $user->stores()->detach($storeId);
+            } else {
+                $user->delete();
+            }
 
             return response()->json([
                 'message' => 'User deleted successfully.'

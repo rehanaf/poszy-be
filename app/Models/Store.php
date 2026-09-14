@@ -24,15 +24,28 @@ class Store extends Model
 
     /**
      * ID toko default (toko pertama). Dipakai untuk data yang dibuat
-     * tanpa konteks user (seeder, register publik, superadmin).
+     * tanpa konteks user (seeder, superadmin).
      */
     public static function defaultId(): ?int
     {
         return static::query()->orderBy('id')->value('id');
     }
 
+    /**
+     * Pemilik toko.
+     */
+    public function owner()
+    {
+        return $this->belongsTo(User::class, 'owner_id');
+    }
+
+    /**
+     * User yang dapat mengelola toko ini (via pivot store_user, berisi role).
+     */
     public function users()
     {
-        return $this->hasMany(User::class, 'store_id');
+        return $this->belongsToMany(User::class, 'store_user')
+            ->withPivot(['role'])
+            ->withTimestamps();
     }
 }

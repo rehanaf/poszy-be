@@ -121,7 +121,7 @@ class OrderController extends Controller
 
             // ===== Sistem Poin (per toko) =====
             $setting = \App\Models\PointSetting::firstOrCreate(
-                ['store_id' => $user->store_id ?? \App\Models\Store::defaultId()],
+                ['store_id' => \App\Support\CurrentStore::current()],
                 [
                     'earn_min_amount' => 100000,
                     'earn_points' => 10,
