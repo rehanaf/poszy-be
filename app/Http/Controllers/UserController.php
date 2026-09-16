@@ -2,11 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Store;
+use App\Models\StoreInvitation;
 use App\Models\User;
+use App\Notifications\UserInvitedToStore;
+use App\Support\CurrentStore;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Auth; // Pastikan ini di-import
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
@@ -214,6 +219,84 @@ class UserController extends Controller
                 'message' => 'An error occurred while updating the user.',
                 'errors' => $e instanceof ValidationException ? $e->errors() : [$e->getMessage()], // Tampilkan errors validasi atau pesan umum
             ], $e instanceof ValidationException ? 422 : 500);
+        }
+    }
+
+    /**
+     * Undang pengguna (yang sudah terdaftar) ke toko aktif berdasarkan email.
+     * Hanya owner. User yang diundang akan menerima notifikasi in-app.
+     */
+    public function invite(Request $request)
+    {
+        try {
+            $request->validate([
+                'email' => ['required', 'email'],
+                'role' => ['required', 'in:owner,manager,kasir'],
+            ]);
+
+            $storeId = CurrentStore::current();
+            if ($storeId === null) {
+                return response()->json(['message' => 'No store selected.'], 403);
+            }
+
+            $email = strtolower(trim($request->email));
+
+            $target = User::whereRaw('LOWER(email) = ?', [$email])->first();
+            if (! $target) {
+                return response()->json([
+                    'message' => "Email $email belum terdaftar sebagai pengguna.",
+                ], 422);
+            }
+
+            if ($target->isSuperAdmin()) {
+                return response()->json(['message' => 'Superadmin tidak dapat diundang.'], 422);
+            }
+
+            if ($target->stores()->where('store_user.store_id', $storeId)->exists()) {
+                return response()->json(['message' => 'Pengguna tersebut sudah menjadi anggota toko ini.'], 422);
+            }
+
+            $pending = StoreInvitation::where('email', $email)
+                ->where('store_id', $storeId)
+                ->whereNull('accepted_at')
+                ->exists();
+
+            if ($pending) {
+                return response()->json(['message' => 'Pengguna tersebut sudah memiliki undangan yang belum diterima.'], 422);
+            }
+
+            $token = Str::random(40);
+            StoreInvitation::create([
+                'store_id' => $storeId,
+                'invited_by' => $request->user()->id,
+                'email' => $email,
+                'role' => $request->role,
+                'token' => $token,
+            ]);
+
+            $storeName = Store::find($storeId)?->name ?? 'toko';
+            $inviterName = $request->user()->name;
+            $roleLabel = ucfirst($request->role);
+
+            $target->notify(new UserInvitedToStore([
+                'icon' => 'user-plus',
+                'title' => 'Undangan bergabung ke ' . $storeName,
+                'message' => $inviterName . ' mengundang Anda sebagai ' . $roleLabel . ' di toko "' . $storeName . '".',
+                'store_id' => $storeId,
+                'store_name' => $storeName,
+                'role' => $request->role,
+                'token' => $token,
+                'action' => 'accept_invite',
+            ]));
+
+            return response()->json([
+                'message' => 'Undangan terkirim ke ' . $email . '.',
+            ], 201);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => 'Validation failed.',
+                'errors' => $e->errors(),
+            ], 422);
         }
     }
 

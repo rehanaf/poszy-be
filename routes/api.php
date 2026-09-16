@@ -16,6 +16,8 @@ use App\Http\Controllers\UserController; // Import UserController
 use App\Http\Controllers\DashboardController; // Import DashboardController
 use App\Http\Controllers\PointSettingController; // Import PointSettingController
 use App\Http\Controllers\StoreController; // Import StoreController
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\InvitationController;
 
 // Public routes (accessible without authentication)
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
@@ -35,6 +37,13 @@ Route::middleware(['auth:sanctum', 'store.context'])->group(function () {
     Route::post('/stores', [StoreController::class, 'store']);
     Route::get('/stores/{store}', [StoreController::class, 'show']);
     Route::put('/stores/{store}', [StoreController::class, 'update']);
+
+    // Notifikasi in-app & undangan (semua user terautentikasi)
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'readAll']);
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'markRead']);
+    Route::post('/invitations/{token}/accept', [InvitationController::class, 'accept']);
 
     // Grup rute untuk 'owner', 'manager', dan 'kasir' (Semua fitur POS kecuali manajemen user)
     Route::middleware('role:owner,manager,kasir')->group(function () {
@@ -70,5 +79,6 @@ Route::middleware(['auth:sanctum', 'store.context'])->group(function () {
     // Grup rute khusus untuk 'owner' (Manajemen User)
     Route::middleware('role:owner')->group(function () {
         Route::apiResource('users', UserController::class); // Endpoint untuk mengelola user
+        Route::post('/users/invite', [UserController::class, 'invite']);
     });
 });
