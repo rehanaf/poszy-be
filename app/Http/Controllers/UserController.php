@@ -13,9 +13,18 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $storeId = \App\Support\CurrentStore::current();
+        $authUser = $request->user();
 
-        // User yang menjadi anggota toko aktif (via pivot store_user).
-        $query = User::query()->whereHas('stores', fn ($q) => $q->where('store_user.store_id', $storeId));
+        $query = User::query();
+
+        // Superadmin: lihat SEMUA user (tanpa konteks toko).
+        // Owner/manager: hanya user yang menjadi anggota toko aktif.
+        if ($authUser->isSuperAdmin()) {
+            $query->with('stores:id,name');
+        } else {
+            $query->whereHas('stores', fn ($q) => $q->where('store_user.store_id', $storeId))
+                ->with(['stores' => fn ($q) => $q->where('store_user.store_id', $storeId)->select('stores.id', 'stores.name')]);
+        }
 
         // Search by name or email
         if ($request->has('search') && $request->search != '') {
@@ -27,7 +36,11 @@ class UserController extends Controller
 
         // Filter by role (role per toko dari pivot)
         if ($request->has('role') && in_array($request->role, ['owner', 'manager', 'kasir'])) {
-            $query->whereHas('stores', fn ($q) => $q->where('store_user.store_id', $storeId)->where('store_user.role', $request->role));
+            if ($authUser->isSuperAdmin()) {
+                $query->whereHas('stores', fn ($q) => $q->where('store_user.role', $request->role));
+            } else {
+                $query->whereHas('stores', fn ($q) => $q->where('store_user.store_id', $storeId)->where('store_user.role', $request->role));
+            }
         }
 
         // Sorting
@@ -47,13 +60,29 @@ class UserController extends Controller
         $perPage = $request->get('per_page', 10); // Default 10 items per page
         $users = $query->paginate($perPage);
 
-        // Masukkan role per toko ke tiap user
-        $users->getCollection()->transform(function ($user) {
-            $user->setAttribute('store_role', $user->roleInStore(\App\Support\CurrentStore::current()));
-            return $user->makeHidden('password');
+        // Lampirkan role & keanggotaan toko ke tiap user
+        $users->getCollection()->transform(function ($user) use ($storeId) {
+            $user->setAttribute('store_role', $user->isSuperAdmin() ? 'superadmin' : $user->roleInStore($storeId));
+            $user->setAttribute('store_memberships', $this->membershipsOf($user));
+            return $user->makeHidden(['password', 'stores']);
         });
 
         return response()->json($users, 200);
+    }
+
+    /**
+     * Daftar keanggotaan user di toko-toko (dari relasi stores yang sudah di-load).
+     */
+    private function membershipsOf(User $user): array
+    {
+        return $user->stores
+            ->map(fn ($s) => [
+                'store_id' => $s->id,
+                'name' => $s->name,
+                'role' => $s->pivot->role,
+            ])
+            ->values()
+            ->all();
     }
 
     /**
@@ -67,14 +96,12 @@ class UserController extends Controller
                 'name' => ['required', 'string', 'max:255'],
                 'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
                 'password' => ['required', 'string', 'min:8', 'confirmed'],
-                'role' => ['required', 'string', 'in:owner,manager,kasir'],
                 'profile_image_url' => ['nullable', 'url'],
+                'role' => [$request->user()->isSuperAdmin() ? 'nullable' : 'required', 'string', 'in:owner,manager,kasir'],
+                'stores' => ['nullable', 'array'],
+                'stores.*.store_id' => ['required', 'integer', 'exists:stores,id'],
+                'stores.*.role' => ['required', 'string', 'in:owner,manager,kasir'],
             ]);
-
-            $storeId = \App\Support\CurrentStore::current();
-            if ($storeId === null) {
-                return response()->json(['message' => 'No store selected.'], 403);
-            }
 
             $user = User::create([
                 'name' => $request->name,
@@ -84,10 +111,19 @@ class UserController extends Controller
                 'profile_image_url' => $request->profile_image_url,
             ]);
 
-            // Kaitkan user ke toko aktif dengan role dari pivot.
-            $user->stores()->attach($storeId, ['role' => $request->role]);
+            if ($request->user()->isSuperAdmin()) {
+                foreach ($request->input('stores', []) as $m) {
+                    $user->stores()->attach($m['store_id'], ['role' => $m['role']]);
+                }
+            } else {
+                $storeId = \App\Support\CurrentStore::current();
+                if ($storeId === null) {
+                    return response()->json(['message' => 'No store selected.'], 403);
+                }
+                $user->stores()->attach($storeId, ['role' => $request->role]);
+            }
 
-            $user->setAttribute('role', $request->role);
+            $user->setAttribute('role', $request->role ?? 'user');
 
             return response()->json([
                 'message' => 'User created successfully.',
@@ -110,8 +146,15 @@ class UserController extends Controller
      * Display the specified resource.
      * Hanya bisa diakses oleh admin.
      */
-    public function show(User $user)
+    public function show(User $user, Request $request)
     {
+        if ($request->user()->isSuperAdmin()) {
+            $user->load('stores:id,name');
+            $user->setAttribute('store_role', $user->isSuperAdmin() ? 'superadmin' : null);
+            $user->setAttribute('store_memberships', $this->membershipsOf($user));
+            return response()->json($user->makeHidden(['password', 'stores']), 200);
+        }
+
         $user->setAttribute('store_role', $user->roleInStore(\App\Support\CurrentStore::current()));
         return response()->json($user->makeHidden('password'), 200);
     }
@@ -127,22 +170,39 @@ class UserController extends Controller
                 'name' => ['required', 'string', 'max:255'],
                 'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
                 'password' => ['nullable', 'string', 'min:8', 'confirmed'],
-                'role' => ['required', 'string', 'in:owner,manager,kasir'],
                 'profile_image_url' => ['nullable', 'url'],
+                'role' => [$request->user()->isSuperAdmin() ? 'nullable' : 'required', 'string', 'in:owner,manager,kasir'],
+                'stores' => ['nullable', 'array'],
+                'stores.*.store_id' => ['required', 'integer', 'exists:stores,id'],
+                'stores.*.role' => ['required', 'string', 'in:owner,manager,kasir'],
             ]);
 
-            $data = $request->except(['password', 'role']);
+            $data = $request->except(['password', 'role', 'stores']);
             if ($request->filled('password')) {
                 $data['password'] = Hash::make($request->password);
             }
 
             $user->update($data);
 
-            // Update role per toko (pivot store_user) pada toko aktif.
-            $storeId = \App\Support\CurrentStore::current();
-            if ($storeId !== null) {
-                $user->stores()->syncWithoutDetaching([$storeId => ['role' => $request->role]]);
-                $user->setAttribute('store_role', $request->role);
+            if ($request->user()->isSuperAdmin()) {
+                // Superadmin: timpa semua keanggotaan toko user.
+                $map = [];
+                foreach ($request->input('stores', []) as $m) {
+                    $map[$m['store_id']] = ['role' => $m['role']];
+                }
+                $user->stores()->sync($map);
+                $user->setAttribute('store_role', count($map) > 0 ? reset($map)['role'] : null);
+                $user->setAttribute('store_memberships', collect($map)
+                    ->map(fn ($r, $sid) => ['store_id' => (int) $sid, 'role' => $r['role']])
+                    ->values()
+                    ->all());
+            } else {
+                // Owner: update role pada toko aktif (tidak melepas ke toko lain).
+                $storeId = \App\Support\CurrentStore::current();
+                if ($storeId !== null) {
+                    $user->stores()->syncWithoutDetaching([$storeId => ['role' => $request->role]]);
+                    $user->setAttribute('store_role', $request->role);
+                }
             }
 
             return response()->json([
@@ -161,7 +221,7 @@ class UserController extends Controller
      * Remove the specified resource from storage.
      * Hanya bisa diakses oleh admin.
      */
-    public function destroy(User $user)
+    public function destroy(Request $request, User $user)
     {
         try {
             // Mengubah auth()->id() menjadi Auth::id()
@@ -173,8 +233,12 @@ class UserController extends Controller
 
             $storeId = \App\Support\CurrentStore::current();
 
-            // Hapus keterkaitan user dari toko aktif (data global user tetap).
-            if ($storeId !== null) {
+            if ($request->user()->isSuperAdmin()) {
+                // Superadmin: hapus user sepenuhnya (termasuk relasinya ke semua toko).
+                $user->stores()->detach();
+                $user->delete();
+            } elseif ($storeId !== null) {
+                // Owner: hapus keterkaitan user dari toko aktif (data global user tetap).
                 $user->stores()->detach($storeId);
             } else {
                 $user->delete();
