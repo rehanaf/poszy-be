@@ -16,11 +16,46 @@ class Store extends Model
         'footer',
         'default_receipt_size',
         'is_active',
+        'plan',
+        'plan_expires_at',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'plan_expires_at' => 'datetime',
     ];
+
+    /**
+     * Cek apakah toko pada paket gratis.
+     */
+    public function isFree(): bool
+    {
+        return ($this->plan ?? 'free') === 'free';
+    }
+
+    /**
+     * Cek apakah toko pada paket berbayar/pro.
+     */
+    public function isPro(): bool
+    {
+        return ($this->plan ?? 'free') === 'pro';
+    }
+
+    /**
+     * Batas maksimal pengguna toko berdasarkan tier plan.
+     */
+    public function maxUsers(): int
+    {
+        return $this->isPro() ? 999 : 2; // Paket Free: maks 2 user (1 Owner + 1 Kasir)
+    }
+
+    /**
+     * Apakah kuota user untuk toko ini sudah habis.
+     */
+    public function hasReachedUserLimit(): bool
+    {
+        return $this->users()->count() >= $this->maxUsers();
+    }
 
     /**
      * ID toko default (toko pertama). Dipakai untuk data yang dibuat

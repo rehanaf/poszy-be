@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Category;
+use App\Models\PaymentMethod;
+use App\Models\PointSetting;
 use App\Models\Store;
 use App\Models\User;
 use App\Support\CurrentStore;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
@@ -15,7 +19,7 @@ class AuthController extends Controller
 {
     /**
      * Handle user registration (buka untuk umum).
-     * User baru belum punya toko; langkah berikutnya "Buat Toko Pertama".
+     * Otomatis membuatkan 1 toko baru gratis (Free Plan) beserta data dasar toko.
      */
     public function register(Request $request)
     {
@@ -24,24 +28,73 @@ class AuthController extends Controller
                 'name' => ['required', 'string', 'max:255'],
                 'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
                 'password' => ['required', 'string', 'min:8', 'confirmed'],
+                'store_name' => ['nullable', 'string', 'max:255'],
             ]);
 
-            $user = User::create([
-                'name' => $request->name,
-                'email' => $request->email,
-                'password' => Hash::make($request->password),
-                'role' => 'user',
-            ]);
+            return DB::transaction(function () use ($request) {
+                $user = User::create([
+                    'name' => $request->name,
+                    'email' => $request->email,
+                    'password' => Hash::make($request->password),
+                    'role' => 'user',
+                ]);
 
-            $token = $user->createToken('auth_token')->plainTextToken;
+                // Buat toko pertama (Paket Free)
+                $storeName = trim($request->input('store_name') ?? '') ?: ($user->name . ' Store');
+                $store = Store::create([
+                    'name' => $storeName,
+                    'tagline' => 'Point Of Sale',
+                    'default_receipt_size' => '80',
+                    'is_active' => true,
+                    'plan' => 'free',
+                ]);
 
-            return response()->json([
-                'message' => 'User registered successfully.',
-                'user' => $user->makeHidden('password'),
-                'stores' => [],
-                'token' => $token,
-                'token_type' => 'Bearer',
-            ], 201);
+                $store->users()->attach($user->id, ['role' => 'owner']);
+                $store->owner_id = $user->id;
+                $store->save();
+
+                // Inisialisasi data dasar untuk toko baru
+                PaymentMethod::create([
+                    'store_id' => $store->id,
+                    'name' => 'Tunai',
+                    'description' => 'Pembayaran tunai langsung',
+                    'is_active' => true,
+                ]);
+
+                PaymentMethod::create([
+                    'store_id' => $store->id,
+                    'name' => 'QRIS',
+                    'description' => 'Pembayaran digital QRIS',
+                    'is_active' => true,
+                ]);
+
+                Category::create([
+                    'store_id' => $store->id,
+                    'name' => 'Umum',
+                    'description' => 'Kategori produk umum',
+                ]);
+
+                PointSetting::create([
+                    'store_id' => $store->id,
+                    'earn_min_amount' => 100000,
+                    'earn_points' => 10,
+                    'earn_multiple' => true,
+                    'exchange_points' => 100,
+                    'exchange_discount_value' => 10,
+                    'exchange_discount_type' => 'percent',
+                ]);
+
+                $token = $user->createToken('auth_token')->plainTextToken;
+
+                return response()->json([
+                    'message' => 'Registrasi berhasil. Toko Anda siap digunakan!',
+                    'user' => $user->makeHidden('password'),
+                    'stores' => $this->userStores($user),
+                    'store' => $store,
+                    'token' => $token,
+                    'token_type' => 'Bearer',
+                ], 201);
+            });
         } catch (ValidationException $e) {
             return response()->json([
                 'message' => 'Validation failed.',
@@ -151,14 +204,14 @@ class AuthController extends Controller
             return Store::query()
                 ->orderBy('id')
                 ->get()
-                ->map(fn (Store $s) => $s->only(['id', 'name', 'logo_url', 'tagline', 'is_active', 'default_receipt_size']) + ['role' => 'superadmin'])
+                ->map(fn (Store $s) => $s->only(['id', 'name', 'logo_url', 'tagline', 'is_active', 'default_receipt_size', 'plan']) + ['role' => 'superadmin'])
                 ->all();
         }
 
         return $user->stores()
             ->orderBy('stores.id')
             ->get()
-            ->map(fn (Store $s) => $s->only(['id', 'name', 'logo_url', 'tagline', 'is_active', 'default_receipt_size']) + ['role' => $s->pivot->role])
+            ->map(fn (Store $s) => $s->only(['id', 'name', 'logo_url', 'tagline', 'is_active', 'default_receipt_size', 'plan']) + ['role' => $s->pivot->role])
             ->all();
     }
 

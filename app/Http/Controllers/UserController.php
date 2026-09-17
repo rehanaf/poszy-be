@@ -97,6 +97,21 @@ class UserController extends Controller
     public function store(Request $request)
     {
         try {
+            if (! $request->user()->isSuperAdmin()) {
+                $storeId = CurrentStore::current();
+                if ($storeId === null) {
+                    return response()->json(['message' => 'No store selected.'], 403);
+                }
+                $store = Store::find($storeId);
+                if ($store && $store->isFree() && $store->hasReachedUserLimit()) {
+                    return response()->json([
+                        'message' => 'Batas maksimal ' . $store->maxUsers() . ' pengguna tercapai untuk paket Free (1 Owner + 1 Kasir/Staf). Upgrade ke Pro untuk menambah staf tanpa batas.',
+                        'limit_reached' => true,
+                        'plan' => 'free',
+                    ], 422);
+                }
+            }
+
             $request->validate([
                 'name' => ['required', 'string', 'max:255'],
                 'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
@@ -237,6 +252,19 @@ class UserController extends Controller
             $storeId = CurrentStore::current();
             if ($storeId === null) {
                 return response()->json(['message' => 'No store selected.'], 403);
+            }
+
+            $store = Store::find($storeId);
+            if (! $store) {
+                return response()->json(['message' => 'Store not found.'], 404);
+            }
+
+            if (! $request->user()->isSuperAdmin() && $store->isFree() && $store->hasReachedUserLimit()) {
+                return response()->json([
+                    'message' => 'Batas maksimal ' . $store->maxUsers() . ' pengguna tercapai untuk paket Free (1 Owner + 1 Kasir/Staf). Upgrade ke Pro untuk menambah staf tanpa batas.',
+                    'limit_reached' => true,
+                    'plan' => 'free',
+                ], 422);
             }
 
             $email = strtolower(trim($request->email));

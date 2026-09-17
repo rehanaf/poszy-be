@@ -45,6 +45,13 @@ class InvitationController extends Controller
             ]);
         }
 
+        $store = $invitation->store;
+        if ($store && $store->isFree() && $store->hasReachedUserLimit()) {
+            return response()->json([
+                'message' => 'Kuota staf pada toko ini sudah penuh (' . $store->maxUsers() . ' pengguna pada Paket Free). Pemilik toko perlu upgrade ke Pro.',
+            ], 422);
+        }
+
         $user->stores()->attach($invitation->store_id, ['role' => $invitation->role]);
         $invitation->update(['accepted_at' => now()]);
 

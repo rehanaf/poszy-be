@@ -142,6 +142,20 @@ class StoreController extends Controller
      */
     public function store(Request $request)
     {
+        $user = $request->user();
+
+        // Cek limit toko untuk pengguna biasa (Non-Superadmin)
+        if (! $user->isSuperAdmin()) {
+            $ownedStoresCount = $user->stores()->wherePivot('role', 'owner')->count();
+            if ($ownedStoresCount >= 1) {
+                return response()->json([
+                    'message' => 'Paket Free hanya dapat memiliki 1 toko. Silakan upgrade ke paket Pro untuk menambah cabang atau toko baru.',
+                    'limit_reached' => true,
+                    'plan' => 'free',
+                ], 403);
+            }
+        }
+
         try {
             $request->validate([
                 'name' => ['required', 'string', 'max:255'],
