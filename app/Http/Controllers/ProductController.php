@@ -90,6 +90,7 @@ class ProductController extends Controller
                 'variants.*.name' => ['required_with:variants', 'string', 'max:255'],
                 'variants.*.sku' => ['nullable', 'string', 'max:255'],
                 'variants.*.price' => ['required_with:variants', 'numeric', 'min:0'],
+                'variants.*.purchase_price' => ['nullable', 'numeric', 'min:0'],
                 'variants.*.stock' => ['nullable', 'integer', 'min:0'],
             ]);
 
@@ -118,6 +119,7 @@ class ProductController extends Controller
                     'name' => $variant['name'],
                     'sku' => $variant['sku'] ?? null,
                     'price' => $variant['price'],
+                    'purchase_price' => $variant['purchase_price'] ?? null,
                     'stock' => $variant['stock'] ?? null,
                 ]);
             }
@@ -181,6 +183,7 @@ class ProductController extends Controller
                 'variants.*.name' => ['required_with:variants', 'string', 'max:255'],
                 'variants.*.sku' => ['nullable', 'string', 'max:255'],
                 'variants.*.price' => ['required_with:variants', 'numeric', 'min:0'],
+                'variants.*.purchase_price' => ['nullable', 'numeric', 'min:0'],
                 'variants.*.stock' => ['nullable', 'integer', 'min:0'],
             ]);
 
@@ -218,6 +221,7 @@ class ProductController extends Controller
                     'name' => $variant['name'],
                     'sku' => $variant['sku'] ?? null,
                     'price' => $variant['price'],
+                    'purchase_price' => $variant['purchase_price'] ?? null,
                     'stock' => $variant['stock'] ?? null,
                 ];
                 if (!empty($variant['id'])) {
