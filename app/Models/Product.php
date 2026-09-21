@@ -15,6 +15,7 @@ class Product extends Model
         'sku',
         'description',
         'price',
+        'purchase_price',
         'stock', // Nullable
         'unit',
         'image_url',

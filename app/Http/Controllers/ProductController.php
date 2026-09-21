@@ -79,6 +79,7 @@ class ProductController extends Controller
                 'sku' => ['nullable', 'string', 'max:255', 'unique:products'],
                 'description' => ['nullable', 'string'],
                 'price' => ['required', 'numeric', 'min:0'],
+                'purchase_price' => ['nullable', 'numeric', 'min:0'],
                 'stock' => ['nullable', 'integer', 'min:0'], // NULL indicates unlimited stock
                 'unit' => ['nullable', 'string', 'max:50'],
                 'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,svg', 'max:2048'], // Validasi untuk file gambar (max 2MB)
@@ -167,6 +168,7 @@ class ProductController extends Controller
                 'sku' => ['nullable', 'string', 'max:255', 'unique:products,sku,' . $product->id], // SKU unik kecuali untuk dirinya sendiri
                 'description' => ['nullable', 'string'],
                 'price' => ['required', 'numeric', 'min:0'],
+                'purchase_price' => ['nullable', 'numeric', 'min:0'],
                 'stock' => ['nullable', 'integer', 'min:0'],
                 'unit' => ['nullable', 'string', 'max:50'],
                 'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,svg', 'max:2048'], // Validasi untuk file gambar
