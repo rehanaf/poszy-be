@@ -3,11 +3,32 @@
 namespace App\Http\Controllers;
 
 use App\Models\Customer;
+use App\Support\CurrentStore;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Unique;
 use Illuminate\Validation\ValidationException;
 
 class CustomerController extends Controller
 {
+    /**
+     * Rule unique yang dibatasi per toko (store_id), sesuai scope data aplikasi.
+     * Validasi Laravel sendiri memeriksa seluruh tabel tanpa global scope store,
+     * sehingga dua toko tidak boleh punya code/email/telepon yang sama padahal aman.
+     */
+    private function uniquePerStore(string $column): Unique
+    {
+        $storeId = CurrentStore::current();
+
+        // Tanpa konteks store (mis. CLI): fallback ke unique global biasa.
+        if ($storeId === null) {
+            return Rule::unique('customers', $column);
+        }
+
+        return Rule::unique('customers', $column)->where(function ($query) use ($storeId) {
+            $query->where('store_id', $storeId);
+        });
+    }
     /**
      * Pesan validasi khusus dalam Bahasa Indonesia supaya jelas bagi kasir/owner.
      */
@@ -77,11 +98,11 @@ class CustomerController extends Controller
             // Memvalidasi input request
             $request->validate([
                 'name' => ['required', 'string', 'max:255'],
-                'email' => ['nullable', 'email', 'max:255', 'unique:customers'],
-                'phone' => ['nullable', 'string', 'max:50', 'unique:customers'],
+                'email' => ['nullable', 'email', 'max:255', $this->uniquePerStore('email')],
+                'phone' => ['nullable', 'string', 'max:50', $this->uniquePerStore('phone')],
                 'address' => ['nullable', 'string', 'max:500'],
                 'customer_type' => ['nullable', 'string', 'max:50'],
-                'customer_code' => ['nullable', 'string', 'max:30', 'regex:/^CR\d{5,}-\d{4}$/', 'unique:customers'],
+                'customer_code' => ['nullable', 'string', 'max:30', 'regex:/^CR\d{5,}-\d{4}$/', $this->uniquePerStore('customer_code')],
             ], $this->validationMessages());
 
             // Jika customer_code tidak dikirim, generate otomatis
@@ -162,11 +183,11 @@ class CustomerController extends Controller
             // Memvalidasi input request
             $request->validate([
                 'name' => ['required', 'string', 'max:255'],
-                'email' => ['nullable', 'email', 'max:255', 'unique:customers,email,' . $customer->id], // Email unik kecuali untuk ID-nya sendiri
-                'phone' => ['nullable', 'string', 'max:50', 'unique:customers,phone,' . $customer->id], // Phone unik kecuali untuk ID-nya sendiri
+                'email' => ['nullable', 'email', 'max:255', $this->uniquePerStore('email')->ignore($customer->id)],
+                'phone' => ['nullable', 'string', 'max:50', $this->uniquePerStore('phone')->ignore($customer->id)],
                 'address' => ['nullable', 'string', 'max:500'],
                 'customer_type' => ['nullable', 'string', 'max:50'],
-                'customer_code' => ['nullable', 'string', 'max:30', 'regex:/^CR\d{5,}-\d{4}$/', 'unique:customers,customer_code,' . $customer->id], // Unik kecuali untuk dirinya sendiri
+                'customer_code' => ['nullable', 'string', 'max:30', 'regex:/^CR\d{5,}-\d{4}$/', $this->uniquePerStore('customer_code')->ignore($customer->id)],
             ], $this->validationMessages());
 
             $data = $request->all();
