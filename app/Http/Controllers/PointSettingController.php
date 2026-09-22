@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\PointSetting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class PointSettingController extends Controller
@@ -57,11 +58,17 @@ class PointSettingController extends Controller
                 'setting' => $setting
             ], 200);
         } catch (ValidationException $e) {
+            Log::warning('Point settings validation failed.', ['input' => $request->all(), 'errors' => $e->errors()]);
             return response()->json([
                 'message' => 'Validation failed.',
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
+            Log::error('Point settings update error.', [
+                'store_id' => \App\Support\CurrentStore::current(),
+                'input' => $request->all(),
+                'exception' => $e->getMessage(),
+            ]);
             return response()->json([
                 'message' => 'An error occurred while updating point settings.',
                 'error' => $e->getMessage(),
