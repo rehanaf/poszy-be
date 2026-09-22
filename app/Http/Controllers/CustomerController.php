@@ -59,8 +59,15 @@ class CustomerController extends Controller
                 'email' => ['nullable', 'email', 'max:255', 'unique:customers'],
                 'phone' => ['nullable', 'string', 'max:50', 'unique:customers'],
                 'address' => ['nullable', 'string', 'max:500'],
-                'customer_type' => ['nullable', 'string', 'in:Keluarga / Karyawan,Komunitas,Member Gold,Member Silver,Umum,Grab,Gojek'],
-                'customer_code' => ['nullable', 'string', 'max:30', 'regex:/^CR\d{5}-\d{4}$/', 'unique:customers'],
+                'customer_type' => ['nullable', 'string', 'max:50'],
+                'customer_code' => ['nullable', 'string', 'max:30', 'regex:/^CR\d{5,}-\d{4}$/', 'unique:customers'],
+            ], [
+                'email.unique' => 'Email sudah digunakan pelanggan lain.',
+                'phone.unique' => 'Nomor telepon sudah digunakan pelanggan lain.',
+                'customer_code.unique' => 'ID Cust sudah digunakan pelanggan lain.',
+                'customer_code.regex' => 'Format ID Cust harus seperti CR00001-2026.',
+                'name.required' => 'Nama pelanggan wajib diisi.',
+                'name.min' => 'Nama pelanggan minimal :min karakter.',
             ]);
 
             // Jika customer_code tidak dikirim, generate otomatis
@@ -144,8 +151,15 @@ class CustomerController extends Controller
                 'email' => ['nullable', 'email', 'max:255', 'unique:customers,email,' . $customer->id], // Email unik kecuali untuk ID-nya sendiri
                 'phone' => ['nullable', 'string', 'max:50', 'unique:customers,phone,' . $customer->id], // Phone unik kecuali untuk ID-nya sendiri
                 'address' => ['nullable', 'string', 'max:500'],
-                'customer_type' => ['nullable', 'string', 'in:Keluarga / Karyawan,Komunitas,Member Gold,Member Silver,Umum,Grab,Gojek'],
-                'customer_code' => ['nullable', 'string', 'max:30', 'regex:/^CR\d{5}-\d{4}$/', 'unique:customers,customer_code,' . $customer->id], // Unik kecuali untuk dirinya sendiri
+                'customer_type' => ['nullable', 'string', 'max:50'],
+                'customer_code' => ['nullable', 'string', 'max:30', 'regex:/^CR\d{5,}-\d{4}$/', 'unique:customers,customer_code,' . $customer->id], // Unik kecuali untuk dirinya sendiri
+            ], [
+                'email.unique' => 'Email sudah digunakan pelanggan lain.',
+                'phone.unique' => 'Nomor telepon sudah digunakan pelanggan lain.',
+                'customer_code.unique' => 'ID Cust sudah digunakan pelanggan lain.',
+                'customer_code.regex' => 'Format ID Cust harus seperti CR00001-2026.',
+                'name.required' => 'Nama pelanggan wajib diisi.',
+                'name.min' => 'Nama pelanggan minimal :min karakter.',
             ]);
 
             $data = $request->all();

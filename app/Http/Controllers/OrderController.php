@@ -341,14 +341,6 @@ class OrderController extends Controller
             }
         }
 
-        // Poin dari barang (per unit produk yang punya poin)
-        $products = \App\Models\Product::whereIn('id', collect($items)->pluck('product_id')->filter())->get()->keyBy('id');
-        foreach ($items as $item) {
-            if (!empty($item['product_id']) && $products->has($item['product_id'])) {
-                $points += (int) $products[$item['product_id']]->points_earn * (int) $item['quantity'];
-            }
-        }
-
         return $points;
     }
 
