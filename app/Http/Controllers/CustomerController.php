@@ -9,6 +9,27 @@ use Illuminate\Validation\ValidationException;
 class CustomerController extends Controller
 {
     /**
+     * Pesan validasi khusus dalam Bahasa Indonesia supaya jelas bagi kasir/owner.
+     */
+    private function validationMessages(): array
+    {
+        return [
+            'name.required' => 'Nama pelanggan wajib diisi.',
+            'name.min' => 'Nama pelanggan minimal :min karakter.',
+            'name.max' => 'Nama pelanggan maksimal :max karakter.',
+            'email.email' => 'Format email tidak valid.',
+            'email.max' => 'Email maksimal :max karakter.',
+            'email.unique' => 'Email sudah digunakan pelanggan lain. Gunakan email lain atau kosongkan.',
+            'phone.max' => 'Nomor telepon maksimal :max karakter.',
+            'phone.unique' => 'Nomor telepon sudah digunakan pelanggan lain. Gunakan nomor lain atau kosongkan.',
+            'address.max' => 'Alamat maksimal :max karakter.',
+            'customer_type.max' => 'Jenis pelanggan maksimal :max karakter.',
+            'customer_code.regex' => 'Format ID Cust harus seperti CR00001-2026.',
+            'customer_code.max' => 'ID Cust maksimal :max karakter.',
+            'customer_code.unique' => 'ID Cust sudah digunakan pelanggan lain.',
+        ];
+    }
+    /**
      * Display a listing of the resource with search, pagination, and sorting.
      */
     public function index(Request $request)
@@ -61,14 +82,7 @@ class CustomerController extends Controller
                 'address' => ['nullable', 'string', 'max:500'],
                 'customer_type' => ['nullable', 'string', 'max:50'],
                 'customer_code' => ['nullable', 'string', 'max:30', 'regex:/^CR\d{5,}-\d{4}$/', 'unique:customers'],
-            ], [
-                'email.unique' => 'Email sudah digunakan pelanggan lain.',
-                'phone.unique' => 'Nomor telepon sudah digunakan pelanggan lain.',
-                'customer_code.unique' => 'ID Cust sudah digunakan pelanggan lain.',
-                'customer_code.regex' => 'Format ID Cust harus seperti CR00001-2026.',
-                'name.required' => 'Nama pelanggan wajib diisi.',
-                'name.min' => 'Nama pelanggan minimal :min karakter.',
-            ]);
+            ], $this->validationMessages());
 
             // Jika customer_code tidak dikirim, generate otomatis
             $customerCode = $request->input('customer_code')
@@ -153,14 +167,7 @@ class CustomerController extends Controller
                 'address' => ['nullable', 'string', 'max:500'],
                 'customer_type' => ['nullable', 'string', 'max:50'],
                 'customer_code' => ['nullable', 'string', 'max:30', 'regex:/^CR\d{5,}-\d{4}$/', 'unique:customers,customer_code,' . $customer->id], // Unik kecuali untuk dirinya sendiri
-            ], [
-                'email.unique' => 'Email sudah digunakan pelanggan lain.',
-                'phone.unique' => 'Nomor telepon sudah digunakan pelanggan lain.',
-                'customer_code.unique' => 'ID Cust sudah digunakan pelanggan lain.',
-                'customer_code.regex' => 'Format ID Cust harus seperti CR00001-2026.',
-                'name.required' => 'Nama pelanggan wajib diisi.',
-                'name.min' => 'Nama pelanggan minimal :min karakter.',
-            ]);
+            ], $this->validationMessages());
 
             $data = $request->all();
             // Jika customer_code dikosongkan, pertahankan kode lama
