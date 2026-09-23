@@ -18,6 +18,7 @@ use App\Http\Controllers\PointSettingController; // Import PointSettingControlle
 use App\Http\Controllers\StoreController; // Import StoreController
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\InvitationController;
+use App\Http\Controllers\PlatformSettingsController;
 
 // Public routes (accessible without authentication)
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
@@ -27,6 +28,9 @@ Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,
 Route::get('/logo/{path}', [StoreController::class, 'logo'])
     ->where('path', '.*')
     ->middleware('throttle:120,1');
+
+// Branding platform (Powered by SemestaPOS) — publik agar bisa dirender di struk
+Route::get('/settings/public', [PlatformSettingsController::class, 'publicShow']);
 
 // Protected routes (require authentication)
 Route::middleware(['auth:sanctum', 'store.context'])->group(function () {
@@ -85,5 +89,13 @@ Route::middleware(['auth:sanctum', 'store.context'])->group(function () {
     Route::middleware('role:owner')->group(function () {
         Route::apiResource('users', UserController::class); // Endpoint untuk mengelola user
         Route::post('/users/invite', [UserController::class, 'invite']);
+    });
+
+    // Pengaturan global platform — hanya superadmin
+    Route::middleware('role:superadmin')->group(function () {
+        Route::get('/settings', [PlatformSettingsController::class, 'show']);
+        Route::put('/settings', [PlatformSettingsController::class, 'update']);
+        Route::post('/settings/logo', [PlatformSettingsController::class, 'uploadLogo']);
+        Route::delete('/settings/logo', [PlatformSettingsController::class, 'deleteLogo']);
     });
 });

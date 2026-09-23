@@ -59,16 +59,18 @@
         .bold { font-weight: 700; }
         .muted { color: #555; }
         .row { display: flex; justify-content: space-between; gap: 6px; }
-        .line { border-top: 1px dashed #999; margin: var(--lh) 0; }
-        .duo { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-        .duo-l { display: flex; flex-direction: column; }
-        .duo-r { font-weight: 700; }
-        .item { margin: calc(var(--lh) * 2) 0; }
-        .iname { font-weight: 700; word-break: break-word; }
-        .irow { display: flex; justify-content: space-between; gap: 6px; color: #555; margin-top: calc(var(--lh) / 2); }
-        .totals { width: 100%; margin: 4px 0; }
-        .totals .r { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 1px 0; white-space: nowrap; }
-        .totals .r span:last-child { margin-left: auto; text-align: right; }
+.line { border-top: 1px dashed #999; margin: var(--lh) 0; }
+.duo { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.duo-l { display: flex; flex-direction: column; }
+.duo-r { font-weight: 700; }
+.item { margin: calc(var(--lh) * 2) 0; }
+.iname { font-weight: 700; word-break: break-word; }
+.irow { display: flex; justify-content: space-between; gap: 6px; color: #555; margin-top: calc(var(--lh) / 2); }
+.totals { width: 100%; margin: 4px 0; }
+.totals .r { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 1px 0; white-space: nowrap; }
+.totals .r span:last-child { margin-left: auto; text-align: right; }
+.powered-by { display: flex; align-items: center; justify-content: center; gap: 6px; color: #666; font-size: calc(var(--fs) - 2px); padding: 2px 0 4px; }
+.powered-logo { max-height: 10mm; max-width: 40%; object-fit: contain; }
 
         h1 { font-size: calc(var(--fs) + 6px); }
         .subtitle { font-size: calc(var(--fs) - 2px); }
@@ -101,6 +103,9 @@
     $storeName = $store->name ?? 'POSZY';
     $storeTagline = $store->tagline ?? 'Point Of Sale';
     $defaultSize = isset($store->default_receipt_size) ? $store->default_receipt_size : '80';
+    $poweredByEnabled = \App\Models\PlatformSetting::get('powered_by_enabled', true);
+    $poweredByText = \App\Models\PlatformSetting::get('powered_by_text', 'Powered by SemestaPOS');
+    $poweredByLogo = \App\Models\PlatformSetting::get('powered_by_logo');
 @endphp
 <body class="sz-{{ $defaultSize }}">
     <div class="picker no-print">
@@ -187,10 +192,26 @@
                 <span>Kembali</span>
                 <span class="muted">{{ number_format(max(0, $order->change_due ?? 0), 0, ',', '.') }}</span>
             </div>
+            @if(($order->points_earned ?? 0) > 0)
+            <div class="r">
+                <span>Poin Terkumpul</span>
+                <span class="muted">+{{ number_format($order->points_earned, 0, ',', '.') }} poin</span>
+            </div>
+            @endif
         </div>
 
         <div class="line"></div>
         <p class="center">{{ $store->footer ?? 'Terima kasih telah berbelanja di ' . $storeName . '!' }}</p>
+
+        @if($poweredByEnabled)
+        <div class="line"></div>
+        <div class="powered-by">
+            @if($poweredByLogo)
+                <img src="{{ url('/api/logo/' . ltrim($poweredByLogo, '/')) }}" alt="" class="powered-logo">
+            @endif
+            <span>{{ $poweredByText }}</span>
+        </div>
+        @endif
     </div>
 
     <script>
