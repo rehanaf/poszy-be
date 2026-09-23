@@ -119,6 +119,7 @@
         @if($store->address ?? null)
             <p class="center muted">{{ $store->address }}</p>
         @endif
+        <p class="center bold">{{ $order->id }}</p>
         <div class="line"></div>
 
         <div class="duo">
