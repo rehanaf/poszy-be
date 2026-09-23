@@ -79,6 +79,10 @@ class StoreController extends Controller
                 'nip' => ['nullable', 'string', 'max:40'],
                 'footer' => ['nullable', 'string', 'max:1000'],
                 'default_receipt_size' => ['nullable', 'string', 'in:58,80,a4'],
+                'customer_type_discounts' => ['nullable', 'array'],
+                'customer_type_discounts.*.type' => ['required', 'string', 'max:50'],
+                'customer_type_discounts.*.mode' => ['required', 'string', 'in:percent,rupiah'],
+                'customer_type_discounts.*.value' => ['required', 'numeric', 'min:0'],
             ]);
 
             $store->update($validated);
@@ -245,6 +249,10 @@ class StoreController extends Controller
                 'footer' => ['nullable', 'string', 'max:1000'],
                 'default_receipt_size' => ['nullable', 'string', 'in:58,80,a4'],
                 'is_active' => ['nullable', 'boolean'],
+                'customer_type_discounts' => ['nullable', 'array'],
+                'customer_type_discounts.*.type' => ['required', 'string', 'max:50'],
+                'customer_type_discounts.*.mode' => ['required', 'string', 'in:percent,rupiah'],
+                'customer_type_discounts.*.value' => ['required', 'numeric', 'min:0'],
             ]);
 
             $store->update($validated);

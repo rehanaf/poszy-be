@@ -18,11 +18,13 @@ class Store extends Model
         'is_active',
         'plan',
         'plan_expires_at',
+        'customer_type_discounts',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'plan_expires_at' => 'datetime',
+        'customer_type_discounts' => 'array',
     ];
 
     /**

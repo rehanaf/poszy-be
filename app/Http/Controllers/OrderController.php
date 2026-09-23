@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use App\Models\Product; // Penting untuk update stok
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB; // Untuk transaksi database
@@ -104,6 +105,10 @@ class OrderController extends Controller
                 'items.*.price' => ['required', 'numeric', 'min:0'], // 'price' is actual selling price
                 'items.*.discount' => ['nullable', 'numeric', 'min:0', 'max:100'], // Discount per item
                 'redeem_points' => ['nullable', 'integer', 'min:0'], // Poin yang ditukar customer
+                'discount_amount' => ['nullable', 'numeric', 'min:0'],
+                'discount_type' => ['nullable', 'string', 'in:percent,rupiah'],
+                'tax_amount' => ['nullable', 'numeric', 'min:0'],
+                'amount_paid' => ['nullable', 'numeric', 'min:0'],
             ]);
 
             $user = Auth::user(); // Kasir yang membuat order
@@ -131,13 +136,14 @@ class OrderController extends Controller
                     'exchange_discount_type' => 'percent',
                 ]
             );
-            $subtotalBase = 0;
-            foreach ($request->input('items') as $item) {
-                $itemPrice = $item['price'];
-                $itemDiscount = $item['discount'] ?? 0;
-                $subtotalBase += $item['quantity'] * $itemPrice * (1 - ($itemDiscount / 100));
-            }
-            $pointsEarned = $this->calculateEarnedPoints($request->input('items'), $subtotalBase, $setting);
+
+            // Poin dihitung dari jumlah pembayaran SETELAH diskon (total_amount
+            // final yang sudah mengurangi diskon transaksi, pajak, dan diskon poin).
+            $pointsEarned = $this->calculateEarnedPoints($request->input('items'), (float) $request->total_amount, $setting);
+
+            // Nomor struk: NoUrut-Bulan-Tahun (mis. 029092026), urut per toko & bulan.
+            $orderDate = Carbon::parse($request->input('order_date') ?? now());
+            $receiptNumber = $this->generateReceiptNumber($orderDate);
 
             $redeemPoints = (int) $request->input('redeem_points', 0);
             $pointsDiscount = 0.00;
@@ -168,6 +174,11 @@ class OrderController extends Controller
                 }
                 $units = intdiv($redeemPoints, $setting->exchange_points);
                 if ($setting->exchange_discount_type === 'percent') {
+                    // Dasar diskon poin: subtotal item setelah diskon per item
+                    $subtotalBase = 0;
+                    foreach ($request->input('items') as $i) {
+                        $subtotalBase += $i['quantity'] * $i['price'] * (1 - (($i['discount'] ?? 0) / 100));
+                    }
                     $pointsDiscount = round($subtotalBase * ($setting->exchange_discount_value / 100) * $units, 2);
                 } else {
                     $pointsDiscount = round($setting->exchange_discount_value * $units, 2);
@@ -181,10 +192,14 @@ class OrderController extends Controller
                 'customer_id' => $request->customer_id,
                 'customer_name' => $customerName, // Simpan nama customer di order
                 'order_date' => $request->input('order_date') ?? now(),
+                'receipt_number' => $receiptNumber,
                 'total_amount' => $request->total_amount, // Frontend akan menghitung total_amount
+                'amount_paid' => $request->filled('amount_paid') ? $request->amount_paid : $request->total_amount,
+                'change_due' => max(0.00, (float) ($request->filled('amount_paid') ? $request->amount_paid : $request->total_amount) - (float) $request->total_amount),
                 'payment_method_id' => $request->payment_method_id,
                 'payment_status' => $request->payment_status,
                 'discount_amount' => $request->discount_amount ?? 0.00, // Total diskon transaksi
+                'discount_type' => $request->discount_type ?? 'rupiah',
                 'tax_amount' => $request->tax_amount ?? 0.00, // Total pajak transaksi
                 'points_earned' => $pointsEarned,
                 'points_redeemed' => $redeemPoints,
@@ -291,6 +306,25 @@ class OrderController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Generate nomor struk dengan format NoUrut-Bulan-Tahun (mis. 029092026),
+     * urut per toko & bulan. Robust terhadap penghapusan order.
+     */
+    private function generateReceiptNumber(Carbon $date): string
+    {
+        $month = (int) $date->format('m');
+        $year = (int) $date->format('y');
+        $last = Order::whereYear('order_date', $date->year)
+            ->whereMonth('order_date', $date->month)
+            ->whereNotNull('receipt_number')
+            ->max('receipt_number');
+        $seq = $last ? ((int) substr($last, 0, 3)) + 1 : 1;
+
+        return str_pad((string) $seq, 3, '0', STR_PAD_LEFT)
+            . str_pad((string) $month, 2, '0', STR_PAD_LEFT)
+            . str_pad((string) $year, 2, '0', STR_PAD_LEFT);
     }
 
     /**

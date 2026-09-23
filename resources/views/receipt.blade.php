@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Receipt #{{ $order->id }}</title>
+    <title>Receipt #{{ $order->receipt_number ?? $order->id }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -122,7 +122,10 @@
         @if($store->address ?? null)
             <p class="center muted">{{ $store->address }}</p>
         @endif
-        <p class="center bold">{{ $order->id }}</p>
+        @if($store->phone ?? null)
+            <p class="center muted">Telp: {{ $store->phone }}</p>
+        @endif
+        <p class="center bold">{{ $order->receipt_number ?? $order->id }}</p>
         <div class="line"></div>
 
         <div class="duo">
@@ -132,6 +135,18 @@
             </div>
             <div class="duo-r">{{ $order->cashier_name }}</div>
         </div>
+
+        @if($order->customer_name)
+        <div class="duo">
+            <div class="duo-l">
+                <span>{{ $order->customer_name }}</span>
+                @if($order->customer?->phone)
+                    <span class="muted">{{ $order->customer->phone }}</span>
+                @endif
+            </div>
+            <div class="duo-r"></div>
+        </div>
+        @endif
 
         <div class="line"></div>
 
