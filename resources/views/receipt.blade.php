@@ -25,7 +25,7 @@
         }
         body.sz-58  { --rw: 58mm;  --fs: 9.5px;  --th: 12px; --lh: 2px; }
         body.sz-80  { --rw: 80mm;  --fs: 12px;   --th: 16px; --lh: 4px; }
-        body.sz-a4  { --rw: 210mm; --fs: 13px;   --th: 22px; --lh: 6px; }
+        body.sz-a4  { --rw: 194mm; --fs: 13px;   --th: 22px; --lh: 6px; }
 
         .picker {
             max-width: 220mm;
