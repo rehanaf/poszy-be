@@ -65,7 +65,6 @@
         .irow { display: flex; justify-content: space-between; gap: 6px; color: #555; margin-top: calc(var(--lh) / 2); }
         .totals { width: 100%; margin: 4px 0; }
         .totals .r { display: flex; justify-content: space-between; padding: 1px 0; }
-        .totals .grand { display: flex; justify-content: space-between; font-size: calc(var(--fs) + 2px); border-top: 1px solid #000; }
 
         h1 { font-size: calc(var(--fs) + 6px); }
         .subtitle { font-size: calc(var(--fs) - 2px); }
@@ -119,7 +118,6 @@
         @if($store->address ?? null)
             <p class="center muted">{{ $store->address }}</p>
         @endif
-        <p class="center bold">ID: {{ $order->id }}</p>
         <div class="line"></div>
 
         <div class="duo">
@@ -146,42 +144,16 @@
 
         <div class="totals">
             <div class="r">
-                <span>Subtotal</span>
-                <span>{{ number_format($order->orderItems->sum(fn ($i) => $i->subtotal), 0, ',', '.') }}</span>
-            </div>
-            @if($order->discount_amount > 0)
-            <div class="r">
-                <span>Discount</span>
-                <span>- {{ number_format($order->discount_amount, 0, ',', '.') }}</span>
-            </div>
-            @endif
-            @if($order->tax_amount > 0)
-            <div class="r">
-                <span>Tax</span>
-                <span>{{ number_format($order->tax_amount, 0, ',', '.') }}</span>
-            </div>
-            @endif
-            @if($order->points_redeemed > 0)
-            <div class="r">
-                <span>Tukar Poin</span>
-                <span>- {{ $order->points_redeemed }} poin</span>
-            </div>
-            @endif
-            @if($order->points_discount > 0)
-            <div class="r">
-                <span>Diskon Poin</span>
-                <span>- {{ number_format($order->points_discount, 0, ',', '.') }}</span>
-            </div>
-            @endif
-            @if($order->points_earned > 0)
-            <div class="r">
-                <span>Poin Diterima</span>
-                <span>+ {{ $order->points_earned }} poin</span>
-            </div>
-            @endif
-            <div class="grand">
                 <span class="bold">TOTAL</span>
                 <span class="bold">{{ number_format($order->total_amount, 0, ',', '.') }}</span>
+            </div>
+            <div class="r">
+                <span>Bayar ({{ $order->paymentMethod?->name ?? 'Lainnya' }})</span>
+                <span>{{ number_format($order->amount_paid ?? $order->total_amount, 0, ',', '.') }}</span>
+            </div>
+            <div class="r">
+                <span>Kembali</span>
+                <span class="muted">{{ number_format(max(0, $order->change_due ?? 0), 0, ',', '.') }}</span>
             </div>
         </div>
 
