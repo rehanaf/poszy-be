@@ -83,6 +83,10 @@ class StoreController extends Controller
                 'customer_type_discounts.*.type' => ['required', 'string', 'max:50'],
                 'customer_type_discounts.*.mode' => ['required', 'string', 'in:percent,rupiah'],
                 'customer_type_discounts.*.value' => ['required', 'numeric', 'min:0'],
+                'tax_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
+                'low_stock_threshold' => ['nullable', 'integer', 'min:0', 'max:10000'],
+                'receipt_prefix' => ['nullable', 'string', 'max:10'],
+                'receipt_seq_digits' => ['nullable', 'integer', 'min:3', 'max:6'],
             ]);
 
             $store->update($validated);
@@ -189,6 +193,10 @@ class StoreController extends Controller
                 'owner_name' => ['nullable', 'string', 'max:255'],
                 'owner_email' => ['nullable', 'string', 'email', 'max:255', 'unique:users,email'],
                 'owner_password' => ['nullable', 'string', 'min:8'],
+                'tax_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
+                'low_stock_threshold' => ['nullable', 'integer', 'min:0', 'max:10000'],
+                'receipt_prefix' => ['nullable', 'string', 'max:10'],
+                'receipt_seq_digits' => ['nullable', 'integer', 'min:3', 'max:6'],
             ]);
 
             $store = Store::create([
@@ -198,6 +206,10 @@ class StoreController extends Controller
                 'phone' => $request->phone,
                 'nip' => $request->nip,
                 'default_receipt_size' => $request->default_receipt_size ?? '80',
+                'tax_rate' => $request->tax_rate ?? 0,
+                'low_stock_threshold' => $request->low_stock_threshold ?? 5,
+                'receipt_prefix' => $request->receipt_prefix,
+                'receipt_seq_digits' => $request->receipt_seq_digits ?? 3,
                 'is_active' => true,
             ]);
 
@@ -253,6 +265,10 @@ class StoreController extends Controller
                 'customer_type_discounts.*.type' => ['required', 'string', 'max:50'],
                 'customer_type_discounts.*.mode' => ['required', 'string', 'in:percent,rupiah'],
                 'customer_type_discounts.*.value' => ['required', 'numeric', 'min:0'],
+                'tax_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
+                'low_stock_threshold' => ['nullable', 'integer', 'min:0', 'max:10000'],
+                'receipt_prefix' => ['nullable', 'string', 'max:10'],
+                'receipt_seq_digits' => ['nullable', 'integer', 'min:3', 'max:6'],
             ]);
 
             $store->update($validated);

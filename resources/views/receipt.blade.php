@@ -130,6 +130,9 @@
         @if($store->phone ?? null)
             <p class="center muted">Telp: {{ $store->phone }}</p>
         @endif
+        @if($store->nip ?? null)
+            <p class="center muted">NIP: {{ $store->nip }}</p>
+        @endif
         <p class="center bold">{{ $order->receipt_number ?? $order->id }}</p>
         <div class="line"></div>
 

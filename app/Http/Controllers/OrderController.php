@@ -141,9 +141,14 @@ class OrderController extends Controller
             // final yang sudah mengurangi diskon transaksi, pajak, dan diskon poin).
             $pointsEarned = $this->calculateEarnedPoints($request->input('items'), (float) $request->total_amount, $setting);
 
-            // Nomor struk: NoUrut-Bulan-Tahun (mis. 029092026), urut per toko & bulan.
+            // Nomor struk: prefix + NoUrut-Bulan-Tahun (mis. TL-029092026), urut per toko & bulan.
             $orderDate = Carbon::parse($request->input('order_date') ?? now());
-            $receiptNumber = $this->generateReceiptNumber($orderDate);
+            $storeSettings = \App\Models\Store::find(\App\Support\CurrentStore::current());
+            $receiptNumber = $this->generateReceiptNumber(
+                $orderDate,
+                (string) ($storeSettings?->receipt_prefix ?? ''),
+                (int) ($storeSettings?->receipt_seq_digits ?? 3)
+            );
 
             $redeemPoints = (int) $request->input('redeem_points', 0);
             $pointsDiscount = 0.00;
@@ -309,20 +314,37 @@ class OrderController extends Controller
     }
 
     /**
-     * Generate nomor struk dengan format NoUrut-Bulan-Tahun (mis. 029092026),
-     * urut per toko & bulan. Robust terhadap penghapusan order.
+     * Generate nomor struk dengan format [prefix]NoUrut-Bulan-Tahun
+     * (mis. TL-029092026), urut per toko & bulan. Robust terhadap penghapusan order.
      */
-    private function generateReceiptNumber(Carbon $date): string
+    private function generateReceiptNumber(Carbon $date, string $prefix = '', int $seqDigits = 3): string
     {
         $month = (int) $date->format('m');
         $year = (int) $date->format('y');
-        $last = Order::whereYear('order_date', $date->year)
+        $prefixLen = strlen($prefix);
+
+        $seq = 1;
+        $existing = Order::whereYear('order_date', $date->year)
             ->whereMonth('order_date', $date->month)
             ->whereNotNull('receipt_number')
-            ->max('receipt_number');
-        $seq = $last ? ((int) substr($last, 0, 3)) + 1 : 1;
+            ->pluck('receipt_number');
 
-        return str_pad((string) $seq, 3, '0', STR_PAD_LEFT)
+        foreach ($existing as $number) {
+            if ($prefixLen > 0 && ! str_starts_with($number, $prefix)) {
+                continue;
+            }
+            $middle = substr($number, $prefixLen);
+            if (strlen($middle) >= $seqDigits + 4) {
+                $candidate = (int) substr($middle, 0, $seqDigits);
+                if ($candidate > $seq) {
+                    $seq = $candidate;
+                }
+            }
+        }
+        $seq += 1;
+
+        return $prefix
+            . str_pad((string) $seq, $seqDigits, '0', STR_PAD_LEFT)
             . str_pad((string) $month, 2, '0', STR_PAD_LEFT)
             . str_pad((string) $year, 2, '0', STR_PAD_LEFT);
     }

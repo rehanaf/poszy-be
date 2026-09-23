@@ -19,12 +19,19 @@ class Store extends Model
         'plan',
         'plan_expires_at',
         'customer_type_discounts',
+        'tax_rate',
+        'low_stock_threshold',
+        'receipt_prefix',
+        'receipt_seq_digits',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'plan_expires_at' => 'datetime',
         'customer_type_discounts' => 'array',
+        'tax_rate' => 'float',
+        'low_stock_threshold' => 'integer',
+        'receipt_seq_digits' => 'integer',
     ];
 
     /**

@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\Store;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -19,13 +20,19 @@ class DashboardController extends Controller
      * Query params:
      * - period: day|week|month|year (default: current month)
      * - date:      Y-m-d reference date (default: today)
-     * - low_stock_threshold: int (default: 5)
+     * - low_stock_threshold: int (default: ambil dari pengaturan toko → 5)
      */
     public function summary(Request $request)
     {
         $period = in_array($request->get('period'), ['day', 'week', 'month', 'year']) ? $request->get('period') : 'month';
         $date = Carbon::parse($request->get('date', now()->toDateString()));
-        $threshold = (int) $request->get('low_stock_threshold', 5);
+        $store = Store::find(\App\Support\CurrentStore::current());
+        $threshold = $request->has('low_stock_threshold')
+            ? (int) $request->get('low_stock_threshold')
+            : (int) ($store->low_stock_threshold ?? 5);
+        if ($threshold < 0) {
+            $threshold = 0;
+        }
 
         [$start, $end] = $this->rangeForPeriod($period, $date);
         $start = $start->startOfDay();
