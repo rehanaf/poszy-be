@@ -7,7 +7,7 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Courier New', ui-monospace, monospace;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
             background: #eee;
             color: #000;
             padding: 12px 0 24px;
@@ -57,6 +57,9 @@
         .muted { color: #555; }
         .row { display: flex; justify-content: space-between; gap: 6px; }
         .line { border-top: 1px dashed #000; margin: var(--lh) 0; }
+        .duo { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+        .duo-l { display: flex; flex-direction: column; }
+        .duo-r { font-weight: 700; }
         .item { margin: calc(var(--lh) * 2) 0; }
         .iname { font-weight: 700; word-break: break-word; }
         .irow { display: flex; justify-content: space-between; gap: 6px; color: #555; margin-top: calc(var(--lh) / 2); }
@@ -116,20 +119,16 @@
         @if($store->address ?? null)
             <p class="center muted">{{ $store->address }}</p>
         @endif
+        <p class="center bold">ID: {{ $order->id }}</p>
         <div class="line"></div>
 
-        <p>Receipt No : {{ $order->id }}</p>
-        <p>Date      : {{ $order->order_date?->format('d M Y H:i') }}</p>
-        @if($store->phone ?? null)
-            <p>Phone     : {{ $store->phone }}</p>
-        @endif
-        @if($store->nip ?? null)
-            <p>NIP       : {{ $store->nip }}</p>
-        @endif
-        <p>Cashier   : {{ $order->cashier_name }}</p>
-        <p>Customer  : {{ $order->customer_name ?? ($order->customer?->name ?? '-') }}</p>
-        <p>Payment   : {{ $order->paymentMethod?->name ?? '-' }}</p>
-        <p class="muted">Status: {{ $order->payment_status }}</p>
+        <div class="duo">
+            <div class="duo-l">
+                <span>{{ $order->order_date?->format('d M Y') }}</span>
+                <span>{{ $order->order_date?->format('H:i') }}</span>
+            </div>
+            <div class="duo-r">{{ $order->cashier_name }}</div>
+        </div>
 
         <div class="line"></div>
 
@@ -188,7 +187,6 @@
 
         <div class="line"></div>
         <p class="center">{{ $store->footer ?? 'Terima kasih telah berbelanja di ' . $storeName . '!' }}</p>
-        <p class="center muted">#{{ $order->id }}</p>
     </div>
 
     <script>
