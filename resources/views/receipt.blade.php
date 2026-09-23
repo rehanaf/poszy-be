@@ -59,12 +59,12 @@
         .line { border-top: 1px dashed #000; margin: var(--lh) 0; }
         .duo { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
         .duo-l { display: flex; flex-direction: column; }
-        .duo-r { font-weight: 700; }
         .item { margin: calc(var(--lh) * 2) 0; }
-        .iname { font-weight: 700; word-break: break-word; }
+        .iname { word-break: break-word; }
         .irow { display: flex; justify-content: space-between; gap: 6px; color: #555; margin-top: calc(var(--lh) / 2); }
         .totals { width: 100%; margin: 4px 0; }
-        .totals .r { display: flex; justify-content: space-between; padding: 1px 0; }
+        .totals .r { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 1px 0; white-space: nowrap; }
+        .totals .r span:last-child { margin-left: auto; text-align: right; }
 
         h1 { font-size: calc(var(--fs) + 6px); }
         .subtitle { font-size: calc(var(--fs) - 2px); }
@@ -111,7 +111,7 @@
         @if($store->logo_url ?? null)
             <img src="{{ $store->logo_url }}" alt="" class="store-logo">
         @endif
-        <h1 class="center bold">{{ $storeName }}</h1>
+        <h1 class="center">{{ $storeName }}</h1>
         @if($storeTagline)
             <p class="center subtitle muted">{{ $storeTagline }}</p>
         @endif
@@ -143,9 +143,21 @@
         <div class="line"></div>
 
         <div class="totals">
+            @if($order->discount_amount > 0)
             <div class="r">
-                <span class="bold">TOTAL</span>
-                <span class="bold">{{ number_format($order->total_amount, 0, ',', '.') }}</span>
+                <span>Diskon</span>
+                <span>- {{ number_format($order->discount_amount, 0, ',', '.') }}</span>
+            </div>
+            @endif
+            @if($order->tax_amount > 0)
+            <div class="r">
+                <span>Pajak</span>
+                <span>{{ number_format($order->tax_amount, 0, ',', '.') }}</span>
+            </div>
+            @endif
+            <div class="r">
+                <span>TOTAL</span>
+                <span>{{ number_format($order->total_amount, 0, ',', '.') }}</span>
             </div>
             <div class="r">
                 <span>Bayar ({{ $order->paymentMethod?->name ?? 'Lainnya' }})</span>
