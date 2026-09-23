@@ -57,10 +57,9 @@
         .muted { color: #555; }
         .row { display: flex; justify-content: space-between; gap: 6px; }
         .line { border-top: 1px dashed #000; margin: var(--lh) 0; }
-        table { width: 100%; border-collapse: collapse; font-size: inherit; }
-        th, td { text-align: left; padding: calc(var(--lh) / 2) 2px; vertical-align: top; word-break: break-word; }
-        td.q, th.q { text-align: center; white-space: nowrap; }
-        td.p, th.p, td.s, th.s { text-align: right; white-space: nowrap; }
+        .item { margin: calc(var(--lh) * 2) 0; }
+        .iname { font-weight: 700; word-break: break-word; }
+        .irow { display: flex; justify-content: space-between; gap: 6px; color: #555; margin-top: calc(var(--lh) / 2); }
         .totals { width: 100%; margin: 4px 0; }
         .totals .r { display: flex; justify-content: space-between; padding: 1px 0; }
         .totals .grand { display: flex; justify-content: space-between; font-size: calc(var(--fs) + 2px); border-top: 1px solid #000; }
@@ -134,26 +133,15 @@
 
         <div class="line"></div>
 
-        <table>
-            <thead>
-                <tr>
-                    <th style="width:44%">Item</th>
-                    <th class="q" style="width:12%">Qty</th>
-                    <th class="p" style="width:22%">Price</th>
-                    <th class="s" style="width:22%">Subtotal</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($order->orderItems as $item)
-                    <tr>
-                        <td>{{ $item->product_name }}@if($item->discount > 0) ({{ $item->discount }}%)@endif</td>
-                        <td class="q">{{ $item->quantity }}</td>
-                        <td class="p">{{ number_format($item->price, 0, ',', '.') }}</td>
-                        <td class="s">{{ number_format($item->subtotal, 0, ',', '.') }}</td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
+        @foreach($order->orderItems as $item)
+            <div class="item">
+                <div class="iname">{{ $item->product_name }}@if($item->discount > 0) ({{ $item->discount }}%)@endif</div>
+                <div class="irow">
+                    <span>{{ $item->quantity }} x {{ number_format($item->price, 0, ',', '.') }}</span>
+                    <span>{{ number_format($item->subtotal, 0, ',', '.') }}</span>
+                </div>
+            </div>
+        @endforeach
 
         <div class="line"></div>
 
