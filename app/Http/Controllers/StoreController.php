@@ -13,6 +13,24 @@ use Illuminate\Validation\ValidationException;
 class StoreController extends Controller
 {
     /**
+     * Sajikan file logo publik dengan header CORS (untuk <img> & canvas).
+     */
+    public function logo(Request $request, string $path)
+    {
+        $path = 'logos/' . ltrim($path, '/');
+
+        if (! Storage::disk('public')->exists($path)) {
+            abort(404);
+        }
+
+        return response(Storage::disk('public')->get($path), 200, [
+            'Content-Type' => Storage::disk('public')->mimeType($path) ?: 'image/png',
+            'Cache-Control' => 'public, max-age=31536000',
+            'Access-Control-Allow-Origin' => '*',
+        ]);
+    }
+
+    /**
      * Bangun URL publik absolut (selalu https) untuk aset storage.
      */
     private function publicUrl(string $path): string

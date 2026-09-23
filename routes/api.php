@@ -23,6 +23,11 @@ use App\Http\Controllers\InvitationController;
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
 
+// Logo toko publik (agar bisa dimuat & digambar di canvas lintas origin)
+Route::get('/logo/{path}', [StoreController::class, 'logo'])
+    ->where('path', '.*')
+    ->middleware('throttle:120,1');
+
 // Protected routes (require authentication)
 Route::middleware(['auth:sanctum', 'store.context'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);

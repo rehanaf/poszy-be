@@ -26,6 +26,25 @@ class Store extends Model
     ];
 
     /**
+     * Sajikan URL logo via rute /api/logo (ber-CORS) agar bisa dimuat
+     * dan digambar ke canvas lintas origin untuk berbagi struk.
+     */
+    public function getLogoUrlAttribute($value)
+    {
+        if (! $value) {
+            return null;
+        }
+        // URL lama masih /storage/... -> ubah ke rute CORS
+        if (str_contains($value, '/storage/')) {
+            $name = \Illuminate\Support\Str::afterLast($value, '/');
+            $name = \Illuminate\Support\Str::before($name, '?');
+            $url = preg_replace('#^https?://#', 'https://', (string) config('app.url'));
+            return rtrim($url, '/') . '/api/logo/' . rawurlencode($name);
+        }
+        return $value;
+    }
+
+    /**
      * Cek apakah toko pada paket gratis.
      */
     public function isFree(): bool
