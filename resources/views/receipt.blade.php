@@ -4,10 +4,13 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Receipt #{{ $order->id }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+            font-family: 'Inter', sans-serif;
             background: #eee;
             color: #000;
             padding: 12px 0 24px;
@@ -56,7 +59,7 @@
         .bold { font-weight: 700; }
         .muted { color: #555; }
         .row { display: flex; justify-content: space-between; gap: 6px; }
-        .line { border-top: 1px dashed #000; margin: var(--lh) 0; }
+        .line { border-top: 1px dashed #999; margin: var(--lh) 0; }
         .duo { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
         .duo-l { display: flex; flex-direction: column; }
         .duo-r { font-weight: 700; }
