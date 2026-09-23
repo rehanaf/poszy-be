@@ -59,8 +59,9 @@
         .line { border-top: 1px dashed #000; margin: var(--lh) 0; }
         .duo { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
         .duo-l { display: flex; flex-direction: column; }
+        .duo-r { font-weight: 700; }
         .item { margin: calc(var(--lh) * 2) 0; }
-        .iname { word-break: break-word; }
+        .iname { font-weight: 700; word-break: break-word; }
         .irow { display: flex; justify-content: space-between; gap: 6px; color: #555; margin-top: calc(var(--lh) / 2); }
         .totals { width: 100%; margin: 4px 0; }
         .totals .r { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 1px 0; white-space: nowrap; }
@@ -111,7 +112,7 @@
         @if($store->logo_url ?? null)
             <img src="{{ $store->logo_url }}" alt="" class="store-logo">
         @endif
-        <h1 class="center">{{ $storeName }}</h1>
+        <h1 class="center bold">{{ $storeName }}</h1>
         @if($storeTagline)
             <p class="center subtitle muted">{{ $storeTagline }}</p>
         @endif
@@ -156,7 +157,7 @@
             </div>
             @endif
             <div class="r">
-                <span>TOTAL</span>
+                <span>Total</span>
                 <span>{{ number_format($order->total_amount, 0, ',', '.') }}</span>
             </div>
             <div class="r">
