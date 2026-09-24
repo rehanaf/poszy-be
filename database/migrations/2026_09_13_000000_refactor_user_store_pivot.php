@@ -56,11 +56,13 @@ return new class extends Migration
             }
         }
 
-        // 4. Drop store_id dari users (SQLite butuh hapus index lebih dulu)
+        // 4. Drop store_id dari users (SQLite butuh hapus index/foreign key lebih dulu)
         Schema::table('users', function (Blueprint $table) {
-            $table->dropForeign(['store_id']);
-            if (Schema::hasIndex('users', 'users_store_id_index')) {
-                $table->dropIndex('users_store_id_index');
+            if (\Illuminate\Support\Facades\DB::getDriverName() === 'sqlite') {
+                $table->dropForeign(['store_id']);
+                if (Schema::hasIndex('users', 'users_store_id_index')) {
+                    $table->dropIndex('users_store_id_index');
+                }
             }
             $table->dropColumn('store_id');
         });
